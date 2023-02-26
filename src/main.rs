@@ -23,13 +23,15 @@ fn main() -> io::Result<()> {
         let option = option.to_str();
         match option {
             Some("--patch"
-            | "--unpatch") => {
+            | "--unpatch"
+            | "--toggle") => {
                 let bundle_dir = args.get(2).map(PathBuf::from)
                     .unwrap_or_else(|| darktide_dir().unwrap());
 
                 match option {
-                    Some("--patch") => patch_darktide(bundle_dir, false)?,
+                    Some("--patch")   => patch_darktide(bundle_dir, false)?,
                     Some("--unpatch") => unpatch_darktide(bundle_dir)?,
+                    Some("--toggle")  => patch_darktide(bundle_dir, true)?,
                     _ => unreachable!(),
                 }
             }
@@ -62,6 +64,7 @@ fn main() -> io::Result<()> {
                 eprintln!("OPTIONS:");
                 eprintln!("  --patch [DIR]   Patch database.");
                 eprintln!("  --unpatch [DIR] Unpatch database.");
+                eprintln!("  --toggle [DIR]  Toggle patch/unpatch on database.");
                 eprintln!("  --meta          Print detected paths in JSON.");
             }
         }
