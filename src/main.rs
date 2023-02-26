@@ -5,6 +5,8 @@ use std::fs;
 use std::io;
 use std::path::PathBuf;
 
+mod xbox_game_pass;
+
 const BUNDLE_DATABASE_NAME: &'static str = "bundle_database.data";
 const BUNDLE_DATABASE_BACKUP: &'static str = "bundle_database.data.bak";
 const BOOT_BUNDLE_NEXT_PATCH: &'static str = "9ba626afa44a3aa3.patch_001";
@@ -13,17 +15,37 @@ const MOD_PATCH_STARTING_POINT: [u8; 8] = u64::to_be_bytes(0xA33A4AA4AF26A69B);
 const OLD_SIZE: usize = 84;
 const MOD_PATCH: &[u8] = include_bytes!("./patch.bin");
 
-fn main() {
+fn main() -> io::Result<()> {
     let args = std::env::args_os().collect::<Vec<_>>();
 
-    let bundle_dir = args.get(2).map(PathBuf::from)
-        .or_else(|| steam_find::get_steam_app(1361210).map(|app| app.path.join("bundle")).ok())
-        .unwrap();
-
     if let Some(option) = args.get(1) {
-        match option.to_str() {
-            Some("--patch") => patch_darktide(bundle_dir, false),
-            Some("--unpatch") => unpatch_darktide(bundle_dir),
+        let option = option.to_str();
+        match option {
+            Some("--patch"
+            | "--unpatch") => {
+                let bundle_dir = args.get(2).map(PathBuf::from)
+                    .unwrap_or_else(|| darktide_dir().unwrap());
+
+                match option {
+                    Some("--patch") => patch_darktide(bundle_dir, false)?,
+                    Some("--unpatch") => unpatch_darktide(bundle_dir)?,
+                    _ => unreachable!(),
+                }
+            }
+            Some("--meta") => {
+                let steam = match steam_find::get_steam_app(1361210).map(|app| app.path) {
+                    Ok(path) => format!("{:?}", path.display()),
+                    Err(_) => String::from("null"),
+                };
+                let gamepass = match xbox_game_pass::find_darktide() {
+                    Ok(path) => format!("{:?}", path.display()),
+                    Err(_) => String::from("null"),
+                };
+                println!("{{");
+                println!("  \"steam\": {steam},", );
+                println!("  \"xbox_game_pass\": {gamepass}" );
+                println!("}}");
+            }
             _ => {
                 eprintln!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
                 eprintln!("{}", env!("CARGO_PKG_REPOSITORY"));
@@ -39,24 +61,31 @@ fn main() {
                 eprintln!("OPTIONS:");
                 eprintln!("  --patch [DIR]   Patch database.");
                 eprintln!("  --unpatch [DIR] Unpatch database.");
+                eprintln!("  --meta          Print detected paths in JSON.");
             }
         }
     } else {
-        patch_darktide(bundle_dir, true);
+        let bundle_dir = args.get(2).map(PathBuf::from)
+            .unwrap_or_else(|| darktide_dir().unwrap());
+        patch_darktide(bundle_dir, true)?;
     }
+
+    Ok(())
 }
 
-fn patch_darktide(bundle_dir: PathBuf, fallback_unpatch: bool) {
+fn darktide_dir() -> io::Result<PathBuf> {
+    steam_find::get_steam_app(1361210).map(|app| app.path.join("bundle"))
+        .or_else(|_| xbox_game_pass::find_darktide().map(|path| path.join("bundle")))
+        .map_err(|_| io::Error::new(io::ErrorKind::NotFound, "Darktide not automatically found for Steam or Xbox Game Pass install"))
+}
+
+fn patch_darktide(bundle_dir: PathBuf, fallback_unpatch: bool) -> io::Result<()> {
     let db_path = bundle_dir.join(BUNDLE_DATABASE_NAME);
     let mut db = match fs::read(&db_path) {
         Ok(db) => db,
         Err(e) => {
-            if e.kind() == io::ErrorKind::NotFound {
-                eprintln!("failed to find \"{}\"", db_path.display());
-            } else {
-                eprintln!("failed to read {BUNDLE_DATABASE_NAME:?}: {e}");
-            }
-            return;
+            eprintln!("failed to read {BUNDLE_DATABASE_NAME:?}");
+            return Err(e);
         }
     };
 
@@ -64,29 +93,29 @@ fn patch_darktide(bundle_dir: PathBuf, fallback_unpatch: bool) {
     let mod_patch_match = b"patch_999";
     if bytes_check(&db, mod_patch_match).is_some() {
         if fallback_unpatch && ask_unpatch() {
-            unpatch_darktide(bundle_dir);
+            unpatch_darktide(bundle_dir)?;
         } else {
             eprintln!("{BUNDLE_DATABASE_NAME:?} already patched");
         }
-        return;
+        return Ok(());
     }
 
     // check for unhandled bundle patch
     if bytes_check(&db, BOOT_BUNDLE_NEXT_PATCH.as_bytes()).is_some() {
-        eprintln!("failed to parse {BUNDLE_DATABASE_NAME:?}: found unexpected patch values");
-        return;
+        return Err(io::Error::new(io::ErrorKind::Unsupported,
+            "unexpected data in \"bundle_database.data\""));
     }
 
     // look for patch offset
     let Some(offset) = bytes_check(&db, &MOD_PATCH_STARTING_POINT) else {
-        eprintln!("failed to parse {BUNDLE_DATABASE_NAME:?}: did not find patch offset");
-        return;
+        return Err(io::Error::new(io::ErrorKind::Unsupported,
+            "could not find patch offset in \"bundle_database.data\""));
     };
 
     // write backup
     if let Err(e) = fs::write(bundle_dir.join(BUNDLE_DATABASE_BACKUP), &db) {
-        eprintln!("failed to backup {BUNDLE_DATABASE_NAME:?}: {e}");
-        return;
+        eprintln!("failed to backup \"bundle_database.data\" to \"bundle_database.data.bak\"");
+        return Err(e);
     }
 
     // insert data
@@ -94,23 +123,29 @@ fn patch_darktide(bundle_dir: PathBuf, fallback_unpatch: bool) {
 
     // write patched database
     if let Err(e) = fs::write(&db_path, &db) {
-        eprintln!("failed to write patched {BUNDLE_DATABASE_NAME:?}: {e}");
-        return;
+        eprintln!("failed to write patched \"bundle_database.data\"");
+        return Err(e);
     }
 
-    println!("successfully patched {BUNDLE_DATABASE_NAME:?}");
+    eprintln!("successfully patched {BUNDLE_DATABASE_NAME:?}");
+    Ok(())
 }
 
-fn unpatch_darktide(bundle_dir: PathBuf) {
+fn unpatch_darktide(bundle_dir: PathBuf) -> io::Result<()> {
     let db_path = bundle_dir.join(BUNDLE_DATABASE_NAME);
     let backup_path = bundle_dir.join(BUNDLE_DATABASE_BACKUP);
 
     // overwrite patched database with backup database
     match fs::rename(backup_path, db_path) {
-        Err(e) if e.kind() == io::ErrorKind::NotFound => eprintln!("backup bundle not found"),
-        Err(e) => eprintln!("{e:?}"),
-        _ => println!("successfully unpatched {BUNDLE_DATABASE_NAME:?}"),
+        Err(e) => {
+            if e.kind() == io::ErrorKind::NotFound {
+                eprintln!("backup \"bundle_database.data.bak\" not found");
+            }
+            return Err(e);
+        }
+        _ => eprintln!("successfully unpatched {BUNDLE_DATABASE_NAME:?}"),
     }
+    Ok(())
 }
 
 // helper function to check for slice matches
