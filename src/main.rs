@@ -1,6 +1,7 @@
 // Adapted from Aussiemon's patch_bundle_database-dt.js
 
 //#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+use std::env;
 use std::fs;
 use std::io;
 use std::path::PathBuf;
@@ -16,7 +17,7 @@ const OLD_SIZE: usize = 84;
 const MOD_PATCH: &[u8] = include_bytes!("./patch.bin");
 
 fn main() -> io::Result<()> {
-    let args = std::env::args_os().collect::<Vec<_>>();
+    let args = env::args_os().collect::<Vec<_>>();
 
     if let Some(option) = args.get(1) {
         let option = option.to_str();
@@ -74,9 +75,41 @@ fn main() -> io::Result<()> {
 }
 
 fn darktide_dir() -> io::Result<PathBuf> {
-    steam_find::get_steam_app(1361210).map(|app| app.path.join("bundle"))
-        .or_else(|_| xbox_game_pass::find_darktide().map(|path| path.join("bundle")))
-        .map_err(|_| io::Error::new(io::ErrorKind::NotFound, "Darktide not automatically found for Steam or Xbox Game Pass install"))
+    let steam = steam_find::get_steam_app(1361210).map(|app| app.path.join("bundle"));
+    let xbox_game_pass = xbox_game_pass::find_darktide().map(|path| path.join("bundle"));
+
+    if steam.is_err() && xbox_game_pass.is_err() {
+        Err(io::Error::new(io::ErrorKind::NotFound, "Darktide not automatically found for Steam or Xbox Game Pass install"))
+    } else if steam.is_ok() && xbox_game_pass.is_ok() {
+        let steam = steam.unwrap();
+        let xbox_game_pass = xbox_game_pass.unwrap();
+
+        // if both copies of Darktide are found then do comparison with
+        // current directory to determine which path should be used.
+        if let Ok(current_dir) = env::current_dir() {
+            let Ok(s) = steam.parent().unwrap().canonicalize() else {
+                return Ok(xbox_game_pass);
+            };
+            let Ok(xgp) = xbox_game_pass.parent().unwrap().canonicalize() else {
+                return Ok(steam);
+            };
+            let Ok(current_dir) = current_dir.canonicalize() else {
+                return Ok(steam);
+            };
+
+            if current_dir.starts_with(s) {
+                Ok(steam)
+            } else if current_dir.starts_with(xgp) {
+                Ok(xbox_game_pass)
+            } else {
+                Ok(steam)
+            }
+        } else {
+            Ok(steam)
+        }
+    } else {
+        steam.or(xbox_game_pass)
+    }
 }
 
 fn patch_darktide(bundle_dir: PathBuf, fallback_unpatch: bool) -> io::Result<()> {
