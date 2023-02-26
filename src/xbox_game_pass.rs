@@ -1,14 +1,16 @@
-use std::ffi::OsString;
 use std::io;
 use std::path::PathBuf;
-use winreg::enums::*;
-use winreg::RegKey;
 
-const DARKTIDE_CLASS_PATH: &'static str = r"Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\Repository\Families\FatsharkAB.Warhammer40000DarktideNew_hwm6pnepa3ng2";
-const REGISTRY_PACKAGE_FULL_NAME: &'static str = r"SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\Package\Index\PackageFullName";
-const REGISTRY_PACKAGE_INDEX: &'static str = r"SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\Package\Data";
-
+#[cfg(target_os = "windows")]
 pub fn find_darktide() -> io::Result<PathBuf> {
+    use std::ffi::OsString;
+    use winreg::enums::*;
+    use winreg::RegKey;
+
+    const DARKTIDE_CLASS_PATH: &'static str = r"Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\Repository\Families\FatsharkAB.Warhammer40000DarktideNew_hwm6pnepa3ng2";
+    const REGISTRY_PACKAGE_FULL_NAME: &'static str = r"SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\Package\Index\PackageFullName";
+    const REGISTRY_PACKAGE_INDEX: &'static str = r"SOFTWARE\Microsoft\Windows\CurrentVersion\AppModel\StateRepository\Cache\Package\Data";
+
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
     let hkcr = RegKey::predef(HKEY_CLASSES_ROOT);
     let apps = hkcr.open_subkey(DARKTIDE_CLASS_PATH)?;
@@ -25,4 +27,9 @@ pub fn find_darktide() -> io::Result<PathBuf> {
         }
     }
     Err(io::Error::new(io::ErrorKind::NotFound, "gamepass version of Darktide not found"))
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn find_darktide() -> io::Result<PathBuf> {
+    Err(io::Error::new(io::ErrorKind::Unsupported, "Xbox Game Pass lookup only supported on Windows"))
 }
