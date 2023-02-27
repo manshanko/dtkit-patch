@@ -34,7 +34,10 @@ fn main() -> io::Result<()> {
                 match option {
                     Some("--patch")   => patch_darktide(bundle_dir, false)?,
                     Some("--unpatch") => unpatch_darktide(bundle_dir)?,
-                    Some("--toggle")  => patch_darktide(bundle_dir, true)?,
+                    Some("--toggle")  => if let Err(e) = patch_darktide(bundle_dir, true) {
+                        patch_failed(&e);
+                        return Err(e);
+                    }
                     _ => unreachable!(),
                 }
             }
@@ -78,7 +81,10 @@ fn main() -> io::Result<()> {
             darktide_dir()?
         };
 
-        patch_darktide(bundle_dir, true)?;
+        if let Err(e) = patch_darktide(bundle_dir, true) {
+            patch_failed(&e);
+            return Err(e);
+        }
     }
 
     Ok(())
@@ -211,6 +217,7 @@ fn ask_unpatch() -> bool {
     open_prompt(
         "Darktide is already patched.\r\nWould you like to remove the patch?\0",
         false,
+        false,
     )
 }
 
@@ -222,6 +229,7 @@ fn patch_successful() {
     open_prompt(
         "Darktide is now patched to load mods.\0",
         true,
+        false,
     );
 }
 
@@ -229,7 +237,20 @@ fn patch_successful() {
 fn patch_successful() {}
 
 #[cfg(windows)]
-fn open_prompt(text: &str, single_button: bool) -> bool {
+fn patch_failed(error: &io::Error) {
+    let msg = format!("dtkit-patch failed to patch Darktide:\n\n{error}\0");
+    open_prompt(
+        &msg,
+        true,
+        true,
+    );
+}
+
+#[cfg(not(windows))]
+fn patch_failed(_error: &io::Error) {}
+
+#[cfg(windows)]
+fn open_prompt(text: &str, single_button: bool, is_error: bool) -> bool {
     use std::ffi::c_int;
     use std::ffi::c_uint;
     use std::ffi::c_void;
@@ -249,15 +270,20 @@ fn open_prompt(text: &str, single_button: bool) -> bool {
 
     const MB_OK: c_uint = 0;
     const MB_YESNO: c_uint = 4;
+    const MB_ICONERROR: c_uint = 0x10;
     const MB_DEFBUTTON2: c_uint = 0x100;
     const IDOK: c_int = 1;
     const IDYES: c_int = 6;
 
-    let mode = if single_button {
+    let mut mode = if single_button {
         MB_OK
     } else {
         MB_YESNO | MB_DEFBUTTON2
     };
+
+    if is_error {
+        mode |= MB_ICONERROR;
+    }
 
     let res = unsafe {
         MessageBoxA(
