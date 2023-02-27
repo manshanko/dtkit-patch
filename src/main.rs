@@ -122,7 +122,7 @@ fn darktide_dir() -> io::Result<PathBuf> {
     }
 }
 
-fn patch_darktide(bundle_dir: PathBuf, fallback_unpatch: bool) -> io::Result<()> {
+fn patch_darktide(bundle_dir: PathBuf, interactive_mode: bool) -> io::Result<()> {
     let db_path = bundle_dir.join(BUNDLE_DATABASE_NAME);
     let mut db = match fs::read(&db_path) {
         Ok(db) => db,
@@ -135,7 +135,7 @@ fn patch_darktide(bundle_dir: PathBuf, fallback_unpatch: bool) -> io::Result<()>
     // check if already patched for mods
     let mod_patch_match = b"patch_999";
     if bytes_check(&db, mod_patch_match).is_some() {
-        if fallback_unpatch && ask_unpatch() {
+        if interactive_mode && ask_unpatch() {
             unpatch_darktide(bundle_dir)?;
         } else {
             eprintln!("{BUNDLE_DATABASE_NAME:?} already patched");
@@ -171,6 +171,11 @@ fn patch_darktide(bundle_dir: PathBuf, fallback_unpatch: bool) -> io::Result<()>
     }
 
     eprintln!("successfully patched {BUNDLE_DATABASE_NAME:?}");
+
+    if interactive_mode {
+        patch_successful();
+    }
+
     Ok(())
 }
 
@@ -203,30 +208,69 @@ fn bytes_check(bytes: &[u8], check: &[u8]) -> Option<usize> {
 
 #[cfg(windows)]
 fn ask_unpatch() -> bool {
+    open_prompt(
+        "Darktide is already patched.\r\nWould you like to remove the patch?\0",
+        false,
+    )
+}
+
+#[cfg(not(windows))]
+fn ask_unpatch() -> bool { false }
+
+#[cfg(windows)]
+fn patch_successful() {
+    open_prompt(
+        "Darktide is now patched to load mods.\0",
+        true,
+    );
+}
+
+#[cfg(not(windows))]
+fn patch_successful() {}
+
+#[cfg(windows)]
+fn open_prompt(text: &str, single_button: bool) -> bool {
     use std::ffi::c_int;
     use std::ffi::c_uint;
     use std::ffi::c_void;
     use std::ptr;
 
+    assert_eq!(0, text.as_bytes()[text.len() - 1]);
+
     #[link(name = "User32")]
     extern "C" {
-        pub fn MessageBoxA(hWnd: *mut c_void, lpText: *const i8, lpCaption: *const i8, uType: c_uint) -> c_int;
+        pub fn MessageBoxA(
+            hWnd: *mut c_void,
+            lpText: *const i8,
+            lpCaption: *const i8,
+            uType: c_uint,
+        ) -> c_int;
     }
 
+    const MB_OK: c_uint = 0;
     const MB_YESNO: c_uint = 4;
+    const MB_DEFBUTTON2: c_uint = 0x100;
+    const IDOK: c_int = 1;
     const IDYES: c_int = 6;
 
-    unsafe {
-        let res = MessageBoxA(
-            ptr::null_mut(),
-            b"Darktide is already patched.\r\nWould you like to remove the patch?\0".as_ptr() as *const _,
-            b"dtkit-patch\0".as_ptr() as *const _,
-            MB_YESNO,
-        );
+    let mode = if single_button {
+        MB_OK
+    } else {
+        MB_YESNO | MB_DEFBUTTON2
+    };
 
+    let res = unsafe {
+        MessageBoxA(
+            ptr::null_mut(),
+            text.as_ptr() as *const _,
+            "dtkit-patch\0".as_ptr() as *const _,
+            mode,
+        )
+    };
+
+    if single_button {
+        res == IDOK
+    } else {
         res == IDYES
     }
 }
-
-#[cfg(not(windows))]
-fn ask_unpatch() -> bool { false }
