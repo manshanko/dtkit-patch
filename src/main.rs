@@ -25,8 +25,11 @@ fn main() -> io::Result<()> {
             Some("--patch"
             | "--unpatch"
             | "--toggle") => {
-                let bundle_dir = args.get(2).map(PathBuf::from)
-                    .unwrap_or_else(|| darktide_dir().unwrap());
+                let bundle_dir = if let Some(path) = args.get(2).map(PathBuf::from) {
+                    path
+                } else {
+                    darktide_dir()?
+                };
 
                 match option {
                     Some("--patch")   => patch_darktide(bundle_dir, false)?,
@@ -69,8 +72,12 @@ fn main() -> io::Result<()> {
             }
         }
     } else {
-        let bundle_dir = args.get(2).map(PathBuf::from)
-            .unwrap_or_else(|| darktide_dir().unwrap());
+        let bundle_dir = if let Some(path) = args.get(2).map(PathBuf::from) {
+            path
+        } else {
+            darktide_dir()?
+        };
+
         patch_darktide(bundle_dir, true)?;
     }
 
