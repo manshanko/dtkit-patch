@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "dtkit-patch"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "steam_find",
  "winreg",
@@ -13,7 +13,7 @@ dependencies = [
 [[package]]
 name = "steam_find"
 version = "0.1.1"
-source = "git+https://github.com/ManShanko/steam_find?rev=8195dd0e8fff2a3cedf94fe130a9a08cbe70839e#8195dd0e8fff2a3cedf94fe130a9a08cbe70839e"
+source = "git+https://github.com/ManShanko/steam_find?rev=0e070bb1e1604588f2dc5d727b44719b188a67ad#0e070bb1e1604588f2dc5d727b44719b188a67ad"
 
 [[package]]
 name = "winapi"
