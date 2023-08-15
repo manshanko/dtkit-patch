@@ -92,7 +92,7 @@ fn main() -> io::Result<()> {
 
 fn darktide_dir() -> io::Result<PathBuf> {
     let steam = steam_find::get_steam_app(1361210).map(|app| app.path.join("bundle"));
-    let xbox_game_pass = xbox_game_pass::find_darktide().map(|path| path.join("bundle"));
+    let xbox_game_pass = xbox_game_pass::find_darktide().map(|path| path.join("Content/bundle"));
 
     if steam.is_err() && xbox_game_pass.is_err() {
         Err(io::Error::new(io::ErrorKind::NotFound, "Darktide not automatically found for Steam or Xbox Game Pass install"))
