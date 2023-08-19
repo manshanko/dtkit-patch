@@ -6,6 +6,11 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/ManShanko/dtkit-patch"
 
+[profile.release]
+opt-level = "s"
+lto = "thin"
+panic = "abort"
+
 [dependencies]
 steam_find = { git = "https://github.com/ManShanko/steam_find", rev = "c7ab9376cd18a4e02a84e61aac92ca9ec70c7031" }
 
