@@ -7,7 +7,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/ManShanko/dtkit-patch"
 
 [dependencies]
-steam_find = { git = "https://github.com/ManShanko/steam_find", rev = "0e070bb1e1604588f2dc5d727b44719b188a67ad" }
+steam_find = { git = "https://github.com/ManShanko/steam_find", rev = "c7ab9376cd18a4e02a84e61aac92ca9ec70c7031" }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 winreg = "0.10.1"
