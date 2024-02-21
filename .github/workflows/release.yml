@@ -10,6 +10,9 @@ on:
 permissions:
   contents: write
 
+env:
+    RUSTFLAGS: -C target-feature=-avx
+
 jobs:
   create-release:
     name: create-release
@@ -57,7 +60,7 @@ jobs:
         target: ${{ matrix.target }}
 
     - name: Build release binary
-      run: RUSTFLAGS="-C target-feature=-avx" cargo build --verbose --release --target ${{ matrix.target }}
+      run: cargo build --verbose --release --target ${{ matrix.target }}
 
     - name: Strip release binary (linux)
       if: matrix.build == 'linux'
