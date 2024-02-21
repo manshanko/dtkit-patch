@@ -53,7 +53,7 @@ jobs:
         components: rust-src
 
     - name: Build release binary
-      run: cargo build --verbose --release --target ${{ matrix.target }} "-Zbuild-std=std,panic_abort" "-Zbuild-std-features=,"
+      run: RUSTFLAGS="-C target-feature=-avx" cargo build --verbose --release --target ${{ matrix.target }} "-Zbuild-std=std,panic_abort" "-Zbuild-std-features=panic_immediate_abort"
 
     - name: Strip release binary (linux)
       if: matrix.build == 'linux'
