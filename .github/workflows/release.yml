@@ -1,19 +1,23 @@
 # adapted from ripgrep's release.yml:
-# https://github.com/BurntSushi/ripgrep/blob/4386b8e805e273a9795ad4e256c455c74407c949/.github/workflows/release.yml
+# https://github.com/BurntSushi/ripgrep/blob/7099e174acbcbd940f57e4ab4913fee4040c826e/.github/workflows/release.yml
 
 name: release
 on:
   push:
     tags:
     - "[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: write
+
 jobs:
   create-release:
     name: create-release
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     outputs:
-      upload_url: ${{ steps.release.outputs.upload_url }}
       app_version: ${{ env.APP_VERSION }}
     steps:
+      - uses: actions/checkout@v3
       - name: Get release version from tag
         shell: bash
         if: env.APP_VERSION == ''
@@ -21,13 +25,9 @@ jobs:
           echo "APP_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
           echo "version is: ${{ env.APP_VERSION }}"
       - name: Create GitHub release
-        id: release
-        uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ env.APP_VERSION }}
-          release_name: ${{ env.APP_VERSION }}
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create ${{ env.APP_VERSION }}
 
   build-release:
     name: build-release
@@ -35,10 +35,15 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        build: [win]
+        build: [linux, win]
         include:
+        - build: linux
+          os: ubuntu-latest
+          rust: nightly
+          target: x86_64-unknown-linux-musl
         - build: win
           os: windows-latest
+          rust: nightly
           target: x86_64-pc-windows-msvc
 
     steps:
@@ -48,12 +53,11 @@ jobs:
     - name: Install Rust
       uses: dtolnay/rust-toolchain@master
       with:
-        toolchain: nightly
+        toolchain: ${{ matrix.rust }}
         target: ${{ matrix.target }}
-        components: rust-src
 
     - name: Build release binary
-      run: RUSTFLAGS="-C target-feature=-avx" cargo build --verbose --release --target ${{ matrix.target }} "-Zbuild-std=std,panic_abort" "-Zbuild-std-features=panic_immediate_abort"
+      run: RUSTFLAGS="-C target-feature=-avx" cargo build --verbose --release --target ${{ matrix.target }}
 
     - name: Strip release binary (linux)
       if: matrix.build == 'linux'
@@ -69,20 +73,15 @@ jobs:
 
         if [ "${{ matrix.os }}" = "windows-latest" ]; then
           cp "target/${{ matrix.target }}/release/dtkit-patch.exe" "$staging/"
-          7z a "$staging.zip" "./$staging/*"
+          7z a "$staging.zip" "$staging"
           echo "ASSET=$staging.zip" >> $GITHUB_ENV
         else
           cp "target/${{ matrix.target }}/release/dtkit-patch" "$staging/"
-          tar czf "$staging.tar.gz" "./$staging/*"
+          tar czf "$staging.tar.gz" "$staging"
           echo "ASSET=$staging.tar.gz" >> $GITHUB_ENV
         fi
 
     - name: Upload release archive
-      uses: actions/upload-release-asset@v1.0.2
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: ${{ env.ASSET }}
-        asset_name: ${{ env.ASSET }}
-        asset_content_type: application/octet-stream
+        GH_TOKEN: ${{ github.token }}
+      run: gh release upload ${{ needs.create-release.outputs.app_version }} ${{ env.ASSET }}
