@@ -9,6 +9,8 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   create-release:
@@ -62,6 +64,11 @@ jobs:
     - name: Strip release binary (linux)
       if: matrix.build == 'linux'
       run: strip "target/${{ matrix.target }}/release/dtkit-patch"
+
+    - name: Artifact attestation
+      uses: actions/attest-build-provenance@v2
+      with:
+        subject-path: "target/${{ matrix.target }}/release/dtkit-patch${{ matrix.build == 'win' && '.exe' || '' }}"
 
     - name: Create archive
       shell: bash
