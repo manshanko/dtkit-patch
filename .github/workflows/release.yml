@@ -41,11 +41,11 @@ jobs:
         include:
         - build: linux
           os: ubuntu-latest
-          rust: nightly
+          rust: stable
           target: x86_64-unknown-linux-musl
         - build: win
           os: windows-latest
-          rust: nightly
+          rust: stable
           target: x86_64-pc-windows-msvc
 
     steps:
