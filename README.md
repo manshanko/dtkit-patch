@@ -1,7 +1,7 @@
 dtkit-patch
 ===========
 
-Simple tool for patching Darktide to setup [Darktide Mod Loader (DML)](https://github.com/Darktide-Mod-Framework/Darktide-Mod-Loader/).
+Simple tool to patch Darktide so mods can be loaded with [Darktide Mod Loader (DML)](https://github.com/Darktide-Mod-Framework/Darktide-Mod-Loader/).
 
 dtkit-patch is based on Aussiemon's original nodejs script.
 
