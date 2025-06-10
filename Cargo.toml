@@ -1,10 +1,10 @@
 [package]
 name = "dtkit-patch"
 version = "0.1.8"
-authors = ["ManShanko <deathage@gmail.com>"]
+authors = ["manshanko <manshanko@wartide.net>"]
 edition = "2021"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/ManShanko/dtkit-patch"
+repository = "https://github.com/manshanko/dtkit-patch"
 
 [profile.release]
 opt-level = "s"
