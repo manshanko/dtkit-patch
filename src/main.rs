@@ -15,6 +15,7 @@ const MOD_PATCH_STARTING_POINT: [u8; 8] = u64::to_be_bytes(0xA33A4AA4AF26A69B);
 
 const OLD_SIZE: usize = 84;
 const MOD_PATCH: &[u8] = include_bytes!("./patch.bin");
+const MOD_PATCH_TAG: &[u8] = b"patch_999";
 
 fn main() -> io::Result<()> {
     let args = env::args_os().collect::<Vec<_>>();
@@ -33,7 +34,7 @@ fn main() -> io::Result<()> {
 
                 match option {
                     Some("--patch")   => patch_darktide(bundle_dir, false)?,
-                    Some("--unpatch") => unpatch_darktide(bundle_dir)?,
+                    Some("--unpatch") => unpatch_darktide(bundle_dir, false)?,
                     Some("--toggle")  => if let Err(e) = patch_darktide(bundle_dir, true) {
                         patch_failed(&e);
                         return Err(e);
@@ -139,10 +140,9 @@ fn patch_darktide(bundle_dir: PathBuf, interactive_mode: bool) -> io::Result<()>
     };
 
     // check if already patched for mods
-    let mod_patch_match = b"patch_999";
-    if bytes_check(&db, mod_patch_match).is_some() {
+    if bytes_check(&db, MOD_PATCH_TAG).is_some() {
         if interactive_mode && ask_unpatch() {
-            unpatch_darktide(bundle_dir)?;
+            unpatch_darktide(bundle_dir, true)?;
         } else {
             eprintln!("{BUNDLE_DATABASE_NAME:?} already patched");
         }
@@ -185,15 +185,25 @@ fn patch_darktide(bundle_dir: PathBuf, interactive_mode: bool) -> io::Result<()>
     Ok(())
 }
 
-fn unpatch_darktide(bundle_dir: PathBuf) -> io::Result<()> {
+fn unpatch_darktide(bundle_dir: PathBuf, force: bool) -> io::Result<()> {
     let db_path = bundle_dir.join(BUNDLE_DATABASE_NAME);
     let backup_path = bundle_dir.join(BUNDLE_DATABASE_BACKUP);
+
+    // avoid replacing unpatched database when using `--unpatch`
+    if !force {
+        if let Ok(db) = fs::read(&db_path) {
+            if bytes_check(&db, MOD_PATCH_TAG).is_none() {
+                eprintln!("{BUNDLE_DATABASE_NAME:?} is already unpatched");
+                return Ok(());
+            }
+        }
+    }
 
     // overwrite patched database with backup database
     match fs::rename(backup_path, db_path) {
         Err(e) => {
             if e.kind() == io::ErrorKind::NotFound {
-                eprintln!("backup \"bundle_database.data.bak\" not found");
+                eprintln!("backup {BUNDLE_DATABASE_BACKUP:?} not found");
             }
             return Err(e);
         }
