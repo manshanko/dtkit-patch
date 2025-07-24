@@ -1,9 +1,12 @@
 const std = @import("std");
 
+const os = @import("os.zig");
+const OsStr = os.OsStr;
+
 const BUNDLE_DATABASE = "bundle_database.data";
-const BUNDLE_DATABASE_OS = std.unicode.utf8ToUtf16LeStringLiteral(BUNDLE_DATABASE);
+const BUNDLE_DATABASE_OS = os.into_os_str(BUNDLE_DATABASE);
 const BUNDLE_DATABASE_BAK = "bundle_database.data.bak";
-const BUNDLE_DATABASE_BAK_OS = std.unicode.utf8ToUtf16LeStringLiteral(BUNDLE_DATABASE_BAK);
+const BUNDLE_DATABASE_BAK_OS = os.into_os_str(BUNDLE_DATABASE_BAK);
 
 const BOOT_BUNDLE_NEXT_PATCH = "9ba626afa44a3aa3.patch_001";
 const OLD_SIZE: u64 = 84;
@@ -14,14 +17,14 @@ const MOD_PATCH_STARTING_POINT = std.mem.asBytes(&@byteSwap(MOD_PATCH_STARTING_P
 
 pub fn main() void {
     const allocator = std.heap.page_allocator;
-    const dir = std.process.getenvW(std.unicode.utf8ToUtf16LeStringLiteral("DARKTIDE_BUNDLE_DIR"))
+    const dir = std.process.getenvW(os.into_os_str("DARKTIDE_BUNDLE_DIR"))
     orelse {
         print("ERROR: environment variable DARKTIDE_BUNDLE_DIR not set");
         std.process.exit(1);
     };
 
-    const db_path = path_join(allocator, dir, BUNDLE_DATABASE_OS) catch abort(error.OutOfMemory);
-    const db_bak_path = path_join(allocator, dir, BUNDLE_DATABASE_BAK_OS) catch abort(error.OutOfMemory);
+    const db_path = os.path_join(allocator, dir, BUNDLE_DATABASE_OS) catch abort(error.OutOfMemory);
+    const db_bak_path = os.path_join(allocator, dir, BUNDLE_DATABASE_BAK_OS) catch abort(error.OutOfMemory);
 
     const res = toggle_patch(allocator, db_path, db_bak_path, false);
 
@@ -33,7 +36,7 @@ fn abort(err: anyerror) noreturn {
     std.process.exit(1);
 }
 
-fn toggle_patch(allocator: std.mem.Allocator, db_path: [:0]const u16, db_bak_path: [:0]const u16, interactive: bool) !void {
+fn toggle_patch(allocator: std.mem.Allocator, db_path: OsStr, db_bak_path: OsStr, interactive: bool) !void {
     if (apply_patch(allocator, db_path, db_bak_path)) |_| {
         print("successfully patched \"" ++ BUNDLE_DATABASE ++ "\"");
     } else |e| {
@@ -49,7 +52,7 @@ fn toggle_patch(allocator: std.mem.Allocator, db_path: [:0]const u16, db_bak_pat
     }
 }
 
-fn remove_patch(allocator: std.mem.Allocator, db_path: [:0]const u16, db_bak_path: [:0]const u16) !void {
+fn remove_patch(allocator: std.mem.Allocator, db_path: OsStr, db_bak_path: OsStr) !void {
     const data = try read_database(allocator, db_path);
     if (scan_database(data.buffer[0..data.read])) |_| {
         print("\"" ++ BUNDLE_DATABASE ++ "\" is already not patched");
@@ -62,7 +65,7 @@ fn remove_patch(allocator: std.mem.Allocator, db_path: [:0]const u16, db_bak_pat
     }
 }
 
-fn apply_patch(allocator: std.mem.Allocator, db_path: [:0]const u16, db_bak_path: [:0] const u16) !void {
+fn apply_patch(allocator: std.mem.Allocator, db_path: OsStr, db_bak_path: OsStr) !void {
     const data = try read_database(allocator, db_path);
     const offset = try scan_database(data.buffer[0..data.read]);
 
@@ -75,23 +78,23 @@ fn apply_patch(allocator: std.mem.Allocator, db_path: [:0]const u16, db_bak_path
     @memcpy(data.buffer[offset..offset + MOD_PATCH.len], MOD_PATCH);
 
     // create backup database
-    try std.posix.unlinkW(db_bak_path);
-    std.posix.renameW(db_path, db_bak_path) catch |err| return switch (err) {
+    try os.fs_unlink(db_bak_path);
+    os.fs_rename(db_path, db_bak_path) catch |err| return switch (err) {
         error.FileNotFound => error.NotFoundDatabase,
         else => return err,
     };
 
     // write patched database
-    var db = try std.fs.cwd().createFileW(db_path, .{});
+    var db = try os.fs_createFile(db_path);
     _ = try db.write(data.buffer[0..data.read + extra_size]);
 }
 
-fn restore_backup(db_path: [:0]const u16, db_bak_path: [:0]const u16) !void {
-    std.posix.unlinkW(db_path) catch |err| return switch (err) {
+fn restore_backup(db_path: OsStr, db_bak_path: OsStr) !void {
+    os.fs_unlink(db_path) catch |err| return switch (err) {
         error.FileNotFound => error.NotFoundBackup,
         else => return err,
     };
-    std.posix.renameW(db_bak_path, db_path) catch |err| return switch (err) {
+    os.fs_rename(db_bak_path, db_path) catch |err| return switch (err) {
         error.FileNotFound => error.NotFoundBackup,
         else => return err,
     };
@@ -123,8 +126,8 @@ const file_data = struct {
     read: usize,
 };
 
-fn read_database(allocator: std.mem.Allocator, path: []const u16) !file_data {
-    const file = std.fs.cwd().openFileW(path, .{}) catch |err| return switch (err) {
+fn read_database(allocator: std.mem.Allocator, path: OsStr) !file_data {
+    const file = os.fs_openFile(path) catch |err| return switch (err) {
         error.FileNotFound => error.NotFoundDatabase,
         //error.BadPathName => {
         //    std.debug.print("{f}\n", .{std.unicode.fmtUtf16Le(database_path)});
@@ -145,24 +148,8 @@ fn read_database(allocator: std.mem.Allocator, path: []const u16) !file_data {
     };
 }
 
-fn path_join(allocator: std.mem.Allocator, dir: []const u16, part: []const u16) ![:0]const u16 {
-    var size = dir.len + part.len;
-    if (dir[dir.len - 1] != '\\') {
-        size += 1;
-    }
-    const buffer = try allocator.allocSentinel(u16, size, 0);
-    @memcpy(buffer[0..dir.len], dir);
-    var off = dir.len;
-    if (dir[dir.len - 1] != '\\') {
-        buffer[dir.len] = '\\';
-        off += 1;
-    }
-    @memcpy(buffer[off..], part);
-    return buffer;
-}
-
 fn prompt_user(comptime msg: [:0]const u8) bool {
-    const msg_wide = comptime std.unicode.utf8ToUtf16LeStringLiteral(msg);
+    const msg_wide = comptime os.into_os_str(msg);
     _ = &msg_wide;
     return false;
 }
