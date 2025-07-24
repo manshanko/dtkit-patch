@@ -48,3 +48,22 @@ pub fn fs_createFile(path: OsStr) !std.fs.File {
 pub fn fs_openFile(path: OsStr) !std.fs.File {
     return std.fs.cwd().openFileW(path, .{});
 }
+
+pub const ArgIterator = struct {
+    const Self = @This();
+
+    inner: process.ArgIteratorWindows,
+
+    pub fn init(allocator: std.mem.Allocator) !Self {
+        const cmd_line = std.os.windows.peb().ProcessParameters.CommandLine;
+        const cmd_line_w = cmd_line.Buffer.?[0 .. cmd_line.Length / 2];
+        const args = try process.ArgIteratorWindows.init(allocator, cmd_line_w);
+        return .{
+            .inner = args,
+        };
+    }
+
+    pub fn next(self: *Self) ?OsStr {
+        return self.inner.next();
+    }
+};
