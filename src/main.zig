@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const alloc = @import("zig-std/alloc.zig");
+
 const os = @import("os.zig");
 const OsStr = os.OsStr;
 
@@ -16,7 +18,8 @@ const MOD_PATCH_STARTING_POINT_: u64 = 0xA33A4AA4AF26A69B;
 const MOD_PATCH_STARTING_POINT = std.mem.asBytes(&@byteSwap(MOD_PATCH_STARTING_POINT_));
 
 pub fn main() void {
-    const allocator = std.heap.page_allocator;
+    const allocator = alloc.page_allocator;
+ 
     const dir = std.process.getenvW(os.into_os_str("DARKTIDE_BUNDLE_DIR"))
     orelse {
         print("ERROR: environment variable DARKTIDE_BUNDLE_DIR not set");
