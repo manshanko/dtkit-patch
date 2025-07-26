@@ -81,7 +81,7 @@ fn apply_patch(allocator: std.mem.Allocator, db_path: OsStr, db_bak_path: OsStr)
     @memcpy(data.buffer[offset..offset + MOD_PATCH.len], MOD_PATCH);
 
     // create backup database
-    try os.fs_unlink(db_bak_path);
+    _ = os.fs_unlink(db_bak_path) catch {};
     os.fs_rename(db_path, db_bak_path) catch |err| return switch (err) {
         error.FileNotFound => error.NotFoundDatabase,
         else => return err,
