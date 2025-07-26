@@ -1,6 +1,10 @@
 const builtin = @import("builtin");
 const std = @import("std");
 
+const process = @import("zig-std/process.zig");
+
+const mem = @import("mem.zig");
+
 const is_windows = builtin.os.tag == .windows;
 
 pub const OsStr = if (is_windows) res: {
@@ -19,13 +23,13 @@ pub fn path_join(allocator: std.mem.Allocator, dir: OsStr, part: OsStr) !OsStr {
         size += 1;
     }
     const buffer = try allocator.allocSentinel(u16, size, 0);
-    @memcpy(buffer[0..dir.len], dir);
+    mem.memcpy(buffer[0..dir.len], dir);
     var off = dir.len;
     if (dir[dir.len - 1] != '\\') {
         buffer[dir.len] = '\\';
         off += 1;
     }
-    @memcpy(buffer[off..], part);
+    mem.memcpy(buffer[off..], part);
     return buffer;
 }
 

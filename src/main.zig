@@ -1,9 +1,13 @@
+const builtin = @import("builtin");
 const std = @import("std");
 
 const alloc = @import("zig-std/alloc.zig");
+const mem = @import("mem.zig");
 
 const os = @import("os.zig");
 const OsStr = os.OsStr;
+
+pub const disable_memcpy = builtin.mode == .ReleaseSmall;
 
 const BUNDLE_DATABASE = "bundle_database.data";
 const BUNDLE_DATABASE_OS = os.into_os_str(BUNDLE_DATABASE);
@@ -74,11 +78,19 @@ fn apply_patch(allocator: std.mem.Allocator, db_path: OsStr, db_bak_path: OsStr)
 
     // insert data
     const extra_size = MOD_PATCH.len - OLD_SIZE;
-    @memmove(
-        data.buffer[offset + MOD_PATCH.len..data.read + extra_size],
-        data.buffer[offset + OLD_SIZE..data.read],
-    );
-    @memcpy(data.buffer[offset..offset + MOD_PATCH.len], MOD_PATCH);
+    if (disable_memcpy) {
+        const start = offset + MOD_PATCH.len;
+        const end = data.read + extra_size;
+        const len = end - start;
+        const shift = MOD_PATCH.len - OLD_SIZE;
+        for (0..len) |i| data.buffer[end - i - 1] = data.buffer[end - i - 1 - shift];
+    } else {
+        @memmove(
+            data.buffer[offset + MOD_PATCH.len..data.read + extra_size],
+            data.buffer[offset + OLD_SIZE..data.read],
+        );
+    }
+    mem.memcpy(data.buffer[offset..offset + MOD_PATCH.len], MOD_PATCH);
 
     // create backup database
     _ = os.fs_unlink(db_bak_path) catch {};
