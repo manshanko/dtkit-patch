@@ -174,7 +174,13 @@ fn patch_error_msg(err: anyerror) []const u8 {
         error.OutOfMemory => "out of memory",
         error.NotFoundDatabase => "failed to find \"" ++ BUNDLE_DATABASE ++ "\"",
         error.NotFoundBackup => "failed to find \"" ++ BUNDLE_DATABASE_BAK ++ "\"",
-        else => "unexpected error",
+        error.BadPathName => "directory is an invalid path",
+        else => {
+            if (builtin.mode != .ReleaseSmall) {
+                std.debug.print("{}\n", .{err});
+            }
+            return "unexpected error";
+        }
     };
 }
 
