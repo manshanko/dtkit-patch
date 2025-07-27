@@ -65,7 +65,7 @@ fn execute() ![]const u8 {
             .NotPatched => "\"" ++ BUNDLE_DATABASE ++ "\" is not patched",
         };
     } else {
-        const interactive = !options.toggle and os.console_will_close();
+        const interactive = options.interactive or (!options.toggle and os.console_will_close());
 
         // Default to toggle so running without arguments works (i.e. Explorer).
         const result = try toggle_patch(allocator, db_path, db_bak_path, interactive);

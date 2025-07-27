@@ -26,9 +26,10 @@ pub fn help_msg() []const u8 {
         \\dtkit-patch [OPTION] [DIR]
         \\
         \\OPTIONS:
-        \\  --patch       Patch bundle database.
-        \\  --unpatch     Unpatch bundle database.
-        \\  --toggle      Toggle patch/unpatch on bundle database.
+        \\  --patch           Patch bundle database.
+        \\  --unpatch         Unpatch bundle database.
+        \\  --toggle          Toggle patch/unpatch on bundle database.
+        \\  --interactive     Always open prompt (Windows only).
     ;
 }
 
@@ -37,6 +38,7 @@ const Option = enum {
     const Self = @This();
 
     h, help,
+    interactive,
     patch,
     toggle,
     unpatch,
@@ -81,6 +83,7 @@ pub const PatchOptions = struct {
 
     num_args: u16,
     help: bool,
+    interactive: bool,
     patch: bool,
     unpatch: bool,
     toggle: bool,
@@ -90,6 +93,7 @@ pub const PatchOptions = struct {
         var num_args: u16 = 0;
         var num_opts: u16 = 0;
         var help = false;
+        var interactive = false;
         var patch = false;
         var unpatch = false;
         var toggle = false;
@@ -104,6 +108,7 @@ pub const PatchOptions = struct {
             if (Option.match(arg)) |opt| {
                 switch (opt) {
                     .h, .help => help = true,
+                    .interactive => interactive = true,
                     .patch => patch = true,
                     .unpatch => unpatch = true,
                     .toggle => toggle = true,
@@ -126,6 +131,7 @@ pub const PatchOptions = struct {
         return .{
             .num_args = num_args,
             .help = help,
+            .interactive = interactive,
             .patch = patch,
             .unpatch = unpatch,
             .toggle = toggle,
