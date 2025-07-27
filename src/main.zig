@@ -181,7 +181,7 @@ fn scan_database(data: []const u8) !usize {
 
         // unhandled bundle patch
         if (std.mem.indexOfPosLinear(u8, slice, 0, BOOT_BUNDLE_NEXT_PATCH)) |_| {
-            return error.Unsupported;
+            return error.UnsupportedDatabase;
         }
 
         return offset;
@@ -219,7 +219,7 @@ fn read_database(allocator: std.mem.Allocator, path: OsStr) !file_data {
 
 const PatchError = error{
     AlreadyPatched,
-    Unsupported,
+    UnsupportedDatabase,
     BadFormat,
     OutOfMemory,
     NotFoundDatabase,
@@ -229,7 +229,7 @@ const PatchError = error{
 fn patch_error_msg(err: anyerror) [:0]const u8 {
     return switch (err) {
         error.AlreadyPatched => "\"" ++ BUNDLE_DATABASE ++ "\" is already patched",
-        error.Unsupported => "found unsupported changes in \"" ++ BUNDLE_DATABASE ++ "\"",
+        error.UnsupportedDatabase => "found unsupported changes in \"" ++ BUNDLE_DATABASE ++ "\"",
         error.BadFormat => "unknown format used in \"" ++ BUNDLE_DATABASE ++ "\"",
         error.OutOfMemory => "out of memory",
         error.NotFoundDatabase => "failed to find \"" ++ BUNDLE_DATABASE ++ "\"",
