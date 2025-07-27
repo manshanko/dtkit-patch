@@ -43,8 +43,7 @@ fn execute() ![]const u8 {
 
     const options = cli.PatchOptions.init(&args);
     if (options.help or (options.num_args == 0 and !os.console_will_close())) {
-        print(cli.help_msg());
-        std.process.exit(0);
+        return cli.help_msg();
     }
 
     const dir = options.path orelse return error.NotFoundDarktide;
