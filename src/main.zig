@@ -1,7 +1,7 @@
 const builtin = @import("builtin");
 const std = @import("std");
 
-const alloc = @import("zig-std/alloc.zig");
+const alloc = @import("alloc.zig");
 const mem = @import("mem.zig");
 const cli = @import("cli.zig");
 
@@ -9,6 +9,7 @@ const os = @import("os.zig");
 const OsStr = os.OsStr;
 
 pub const disable_memcpy = builtin.mode == .ReleaseSmall;
+pub const leak_resources = disable_memcpy;
 
 const BUNDLE_DATABASE = "bundle_database.data";
 const BUNDLE_DATABASE_OS = os.into_os_str(BUNDLE_DATABASE);
@@ -36,7 +37,7 @@ pub fn main() void {
 }
 
 fn execute() ![]const u8 {
-    const allocator = alloc.page_allocator;
+    const allocator = alloc.leaky_allocator;
 
     var args = try os.ArgIterator.init(allocator);
     _ = args.next(); // ignore bin arg

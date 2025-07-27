@@ -1,20 +1,20 @@
-// derived from std.heap.page_allocator (lib/std/heap/PageAllocator.zig)
+// based on std.heap.page_allocator (lib/std/heap/PageAllocator.zig)
 const builtin = @import("builtin");
 const std = @import("std");
 const windows = std.os.windows;
 const ntdll = windows.ntdll;
 const SUCCESS = windows.NTSTATUS.SUCCESS;
 
-pub const page_allocator: std.mem.Allocator = .{
+pub const leaky_allocator: std.mem.Allocator = .{
     .ptr = undefined,
     .vtable = &vtable,
 };
 
 const vtable: std.mem.Allocator.VTable = .{
     .alloc = alloc,
-    .resize = resize,
-    .remap = remap,
-    .free = free,
+    .resize = std.mem.Allocator.noResize,
+    .remap = std.mem.Allocator.noRemap,
+    .free = std.mem.Allocator.noFree,
 };
 
 fn map(n: usize, alignment: std.mem.Alignment) ?[*]u8 {
@@ -42,7 +42,7 @@ fn map(n: usize, alignment: std.mem.Alignment) ?[*]u8 {
             return null;
         }
     } else {
-        @compileError("custom page_allocator not implemented for other platforms");
+        @compileError("leaky_allocator not implemented for other platforms");
     }
 }
 
@@ -51,30 +51,4 @@ fn alloc(context: *anyopaque, n: usize, alignment: std.mem.Alignment, ra: usize)
     _ = ra;
     std.debug.assert(n > 0);
     return map(n, alignment);
-}
-
-fn resize(context: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_len: usize, ra: usize) bool {
-    _ = context;
-    _ = memory;
-    _ = alignment;
-    _ = new_len;
-    _ = ra;
-    return false;
-}
-
-fn remap(context: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_len: usize, ra: usize) ?[*]u8 {
-    _ = context;
-    _ = memory;
-    _ = alignment;
-    _ = new_len;
-    _ = ra;
-    return null;
-}
-
-// SAFETY: OS cleans up for us.
-fn free(context: *anyopaque, memory: []u8, alignment: std.mem.Alignment, ra: usize) void {
-    _ = context;
-    _ = memory;
-    _ = alignment;
-    _ = ra;
 }
