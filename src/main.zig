@@ -4,6 +4,7 @@ const std = @import("std");
 const alloc = @import("alloc.zig");
 const mem = @import("mem.zig");
 const cli = @import("cli.zig");
+const find = @import("find.zig");
 
 const os = @import("os.zig");
 const OsStr = os.OsStr;
@@ -50,7 +51,12 @@ fn execute() ![]const u8 {
         return cli.help_msg();
     }
 
-    const dir = options.path orelse return error.NotFoundDarktide;
+    const dir = if (options.path) |path| dir: {
+        break :dir path;
+    } else dir: {
+        break :dir find.find_darktide_gamepass(allocator) catch return error.NotFoundDarktide;
+    };
+    defer if (!leak_resources and options.path == null) allocator.free(dir);
 
     const db_path = try os.path_join(allocator, dir, BUNDLE_DATABASE_OS);
     defer if (!leak_resources) allocator.free(db_path);

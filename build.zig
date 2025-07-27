@@ -15,6 +15,7 @@ pub fn build(b: *std.Build) void {
         }),
     });
     exe.linkSystemLibrary("user32");
+    exe.linkSystemLibrary("advapi32");
 
     b.installArtifact(exe);
 
