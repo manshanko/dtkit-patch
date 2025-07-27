@@ -23,7 +23,7 @@ const MOD_PATCH_TAG = ".patch_999";
 const MOD_PATCH_STARTING_POINT_: u64 = 0xA33A4AA4AF26A69B;
 const MOD_PATCH_STARTING_POINT = std.mem.asBytes(&@byteSwap(MOD_PATCH_STARTING_POINT_));
 
-pub fn main() void {
+pub fn main() u8 {
     const code: u8 = if (execute()) |msg| blk: {
         print(msg);
         break :blk 0;
@@ -33,7 +33,7 @@ pub fn main() void {
         break :blk 1;
     };
 
-    std.process.exit(code);
+    return code;
 }
 
 fn execute() ![]const u8 {
