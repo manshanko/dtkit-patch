@@ -69,6 +69,22 @@ pub const ArgIterator = struct {
     }
 };
 
+extern "kernel32" fn GetConsoleProcessList(
+    lpdwProcessList: [*]windows.DWORD,
+    dwProcessCount: windows.DWORD,
+) callconv(.winapi) windows.DWORD;
+
+// based on https://stackoverflow.com/a/3448740
+pub fn console_will_close() bool {
+    if (is_windows) {
+        var list: [1]windows.DWORD = undefined;
+        const count = GetConsoleProcessList(&list, list.len);
+        return count == 1;
+    } else {
+        return false;
+    }
+}
+
 extern "user32" fn MessageBoxA(
     hWnd: ?windows.HWND,
     lpText: ?windows.LPCSTR,

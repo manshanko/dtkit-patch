@@ -79,6 +79,7 @@ const Option = enum {
 pub const PatchOptions = struct {
     const Self = @This();
 
+    num_args: u16,
     help: bool,
     patch: bool,
     unpatch: bool,
@@ -86,6 +87,7 @@ pub const PatchOptions = struct {
     path: ?OsStr,
 
     pub fn init(args: *os.ArgIterator) Self {
+        var num_args: u16 = 0;
         var num_opts: u16 = 0;
         var help = false;
         var patch = false;
@@ -93,6 +95,7 @@ pub const PatchOptions = struct {
         var toggle = false;
         var path: ?OsStr = null;
         while (args.next()) |arg| {
+            num_args += 1;
             if (num_opts > 0) {
                 // TODO: ignore arg
                 continue;
@@ -121,6 +124,7 @@ pub const PatchOptions = struct {
         }
 
         return .{
+            .num_args = num_args,
             .help = help,
             .patch = patch,
             .unpatch = unpatch,

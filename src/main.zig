@@ -28,6 +28,7 @@ pub fn main() void {
         break :blk 0;
     } else |err| blk: {
         error_print(patch_error_msg(err));
+        if (os.console_will_close()) _ = os.display_message(patch_error_msg(err), .NotifyError);
         break :blk 1;
     };
 
@@ -41,15 +42,17 @@ fn execute() ![]const u8 {
     _ = args.next(); // ignore bin arg
 
     const options = cli.PatchOptions.init(&args);
+    if (options.help or (options.num_args == 0 and !os.console_will_close())) {
+        print(cli.help_msg());
+        std.process.exit(0);
+    }
 
     const dir = options.path orelse return error.NotFoundDarktide;
 
     const db_path = try os.path_join(allocator, dir, BUNDLE_DATABASE_OS);
     const db_bak_path = try os.path_join(allocator, dir, BUNDLE_DATABASE_BAK_OS);
 
-    if (options.help) {
-        return cli.help_msg();
-    } else if (options.patch) {
+    if (options.patch) {
         const result = try apply_patch(allocator, db_path, db_bak_path);
         return switch (result) {
             .AlreadyPatched => patch_error_msg(error.AlreadyPatched),
@@ -62,9 +65,10 @@ fn execute() ![]const u8 {
             .NotPatched => "\"" ++ BUNDLE_DATABASE ++ "\" is not patched",
         };
     } else {
-        // Default to toggle so running without arguments works (i.e. Explorer).
+        const interactive = !options.toggle and os.console_will_close();
 
-        const result = try toggle_patch(allocator, db_path, db_bak_path, !options.toggle);
+        // Default to toggle so running without arguments works (i.e. Explorer).
+        const result = try toggle_patch(allocator, db_path, db_bak_path, interactive);
         return switch (result) {
             .AlreadyPatched => patch_error_msg(error.AlreadyPatched),
             .AppliedPatch => "successfully patched \"" ++ BUNDLE_DATABASE ++ "\"",
@@ -106,7 +110,6 @@ fn toggle_patch(allocator: std.mem.Allocator, db_path: OsStr, db_bak_path: OsStr
             }
         };
     } else |e| {
-        if (interactive) _ = os.display_message(patch_error_msg(e), .NotifyError);
         return e;
     }
 }
@@ -239,7 +242,7 @@ fn patch_error_msg(err: anyerror) [:0]const u8 {
         error.OutOfMemory => "out of memory",
         error.NotFoundDatabase => "failed to find \"" ++ BUNDLE_DATABASE ++ "\"",
         error.NotFoundBackup => "failed to find \"" ++ BUNDLE_DATABASE_BAK ++ "\"",
-        error.NotFoundDarktide => "failed to find Darktide installation",
+        error.NotFoundDarktide => "failed to find Darktide installation directory",
         error.BadPathName => "directory is an invalid path",
         else => {
             if (builtin.mode != .ReleaseSmall) {
