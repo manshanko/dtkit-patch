@@ -23,9 +23,21 @@ const MOD_PATCH_STARTING_POINT_: u64 = 0xA33A4AA4AF26A69B;
 const MOD_PATCH_STARTING_POINT = std.mem.asBytes(&@byteSwap(MOD_PATCH_STARTING_POINT_));
 
 pub fn main() void {
+    const code: u8 = if (execute()) |msg| blk: {
+        print(msg);
+        break :blk 0;
+    } else |err| blk: {
+        error_print(patch_error_msg(err));
+        break :blk 1;
+    };
+
+    std.process.exit(code);
+}
+
+fn execute() ![]const u8 {
     const allocator = alloc.page_allocator;
 
-    var args = os.ArgIterator.init(allocator) catch |e| abort(e);
+    var args = try os.ArgIterator.init(allocator);
     _ = args.next(); // ignore bin arg
 
     const options = cli.PatchOptions.init(&args);
@@ -35,38 +47,33 @@ pub fn main() void {
         std.process.exit(1);
     };
 
-    const db_path = os.path_join(allocator, dir, BUNDLE_DATABASE_OS) catch abort(error.OutOfMemory);
-    const db_bak_path = os.path_join(allocator, dir, BUNDLE_DATABASE_BAK_OS) catch abort(error.OutOfMemory);
+    const db_path = try os.path_join(allocator, dir, BUNDLE_DATABASE_OS);
+    const db_bak_path = try os.path_join(allocator, dir, BUNDLE_DATABASE_BAK_OS);
 
     if (options.help) {
-        print(cli.help_msg());
+        return cli.help_msg();
     } else if (options.patch) {
-        const result = apply_patch(allocator, db_path, db_bak_path) catch |e| abort(e);
-        switch (result) {
-            .AlreadyPatched => print(patch_error_msg(error.AlreadyPatched)),
-            .AppliedPatch => print("successfully patched \"" ++ BUNDLE_DATABASE ++ "\""),
-        }
+        const result = try apply_patch(allocator, db_path, db_bak_path);
+        return switch (result) {
+            .AlreadyPatched => patch_error_msg(error.AlreadyPatched),
+            .AppliedPatch => "successfully patched \"" ++ BUNDLE_DATABASE ++ "\"",
+        };
     } else if (options.unpatch) {
-        const result = remove_patch(allocator, db_path, db_bak_path) catch |e| abort(e);
-        switch (result) {
-            .RemovedPatch => print("successfully removed patch from \"" ++ BUNDLE_DATABASE ++ "\""),
-            .NotPatched => print("\"" ++ BUNDLE_DATABASE ++ "\" is not patched"),
-        }
+        const result = try remove_patch(allocator, db_path, db_bak_path);
+        return switch (result) {
+            .RemovedPatch => "successfully removed patch from \"" ++ BUNDLE_DATABASE ++ "\"",
+            .NotPatched => "\"" ++ BUNDLE_DATABASE ++ "\" is not patched",
+        };
     } else {
         // Default to toggle so running without arguments works (i.e. Explorer).
 
-        const result = toggle_patch(allocator, db_path, db_bak_path, !options.toggle) catch |e| abort(e);
-        switch (result) {
-            .AlreadyPatched => print(patch_error_msg(error.AlreadyPatched)),
-            .AppliedPatch => print("successfully patched \"" ++ BUNDLE_DATABASE ++ "\""),
-            .RemovedPatch => print("successfully removed patch from \"" ++ BUNDLE_DATABASE ++ "\""),
-        }
+        const result = try toggle_patch(allocator, db_path, db_bak_path, !options.toggle);
+        return switch (result) {
+            .AlreadyPatched => patch_error_msg(error.AlreadyPatched),
+            .AppliedPatch => "successfully patched \"" ++ BUNDLE_DATABASE ++ "\"",
+            .RemovedPatch => "successfully removed patch from \"" ++ BUNDLE_DATABASE ++ "\"",
+        };
     }
-}
-
-fn abort(err: anyerror) noreturn {
-    error_print(patch_error_msg(err));
-    std.process.exit(1);
 }
 
 const ToggleResult = enum {
