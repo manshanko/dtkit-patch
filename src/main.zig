@@ -37,9 +37,12 @@ pub fn main() u8 {
 }
 
 fn execute() ![]const u8 {
-    const allocator = alloc.leaky_allocator;
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer if (!leak_resources) std.debug.assert(gpa.deinit() == .ok);
+    const allocator = if (leak_resources) alloc.leaky_allocator else gpa.allocator();
 
     var args = try os.ArgIterator.init(allocator);
+    defer if (!leak_resources) args.deinit();
     _ = args.next(); // ignore bin arg
 
     const options = cli.PatchOptions.init(&args);
@@ -50,7 +53,10 @@ fn execute() ![]const u8 {
     const dir = options.path orelse return error.NotFoundDarktide;
 
     const db_path = try os.path_join(allocator, dir, BUNDLE_DATABASE_OS);
+    defer if (!leak_resources) allocator.free(db_path);
+
     const db_bak_path = try os.path_join(allocator, dir, BUNDLE_DATABASE_BAK_OS);
+    defer if (!leak_resources) allocator.free(db_bak_path);
 
     if (options.patch) {
         const result = try apply_patch(allocator, db_path, db_bak_path);
@@ -116,6 +122,8 @@ fn toggle_patch(allocator: std.mem.Allocator, db_path: OsStr, db_bak_path: OsStr
 
 fn remove_patch(allocator: std.mem.Allocator, db_path: OsStr, db_bak_path: OsStr) !UnpatchResult {
     const data = try read_database(allocator, db_path);
+    defer if (!leak_resources) allocator.free(data.buffer);
+
     if (scan_database(data.buffer[0..data.read])) |_| {
         return .NotPatched;
     } else |e| {
@@ -130,6 +138,8 @@ fn remove_patch(allocator: std.mem.Allocator, db_path: OsStr, db_bak_path: OsStr
 
 fn apply_patch(allocator: std.mem.Allocator, db_path: OsStr, db_bak_path: OsStr) !PatchResult {
     const data = try read_database(allocator, db_path);
+    defer if (!leak_resources) allocator.free(data.buffer);
+
     const offset = scan_database(data.buffer[0..data.read]) catch |e| switch (e) {
         error.AlreadyPatched => return .AlreadyPatched,
         else => return e,
@@ -205,18 +215,16 @@ const file_data = struct {
 fn read_database(allocator: std.mem.Allocator, path: OsStr) !file_data {
     const file = os.fs_openFile(path) catch |err| return switch (err) {
         error.FileNotFound => error.NotFoundDatabase,
-        //error.BadPathName => {
-        //    std.debug.print("{f}\n", .{std.unicode.fmtUtf16Le(database_path)});
-        //    return null;
-        //},
         else => return err,
     };
-    //defer file.close();
+    defer if (!leak_resources) file.close();
 
     const stat = try file.stat();
     const size = stat.size;
 
     const data = try allocator.alloc(u8, size + MOD_PATCH.len);
+    errdefer if (!leak_resources) allocator.free(data);
+
     const read = try file.readAll(data[0..size]);
     return .{
         .buffer = data,

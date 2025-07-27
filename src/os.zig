@@ -64,6 +64,10 @@ pub const ArgIterator = struct {
         };
     }
 
+    pub fn deinit(self: *Self) void {
+        self.inner.deinit();
+    }
+
     pub fn next(self: *Self) ?OsStr {
         return self.inner.next();
     }
