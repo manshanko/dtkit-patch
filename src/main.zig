@@ -54,7 +54,15 @@ fn execute() ![]const u8 {
     const dir = if (options.path) |path| dir: {
         break :dir path;
     } else dir: {
-        break :dir find.find_darktide_gamepass(allocator) catch return error.NotFoundDarktide;
+        if (find.find_darktide_steam(allocator)) |path| {
+            break :dir path;
+        } else |_| {}
+
+        if (builtin.os.tag == .windows) {
+            break :dir find.find_darktide_gamepass(allocator) catch return error.NotFoundDarktide;
+        }
+
+        return error.NotFoundDarktide;
     };
     defer if (!leak_resources and options.path == null) allocator.free(dir);
 
@@ -282,4 +290,5 @@ fn error_print(text: []const u8) void {
 
 test {
     _ = @import("zig-std/process.zig");
+    _ = @import("find.zig");
 }
