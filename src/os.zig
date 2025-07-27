@@ -1,5 +1,6 @@
 const builtin = @import("builtin");
 const std = @import("std");
+const windows = std.os.windows;
 
 const process = @import("zig-std/process.zig");
 
@@ -55,7 +56,7 @@ pub const ArgIterator = struct {
     inner: process.ArgIteratorWindows,
 
     pub fn init(allocator: std.mem.Allocator) !Self {
-        const cmd_line = std.os.windows.peb().ProcessParameters.CommandLine;
+        const cmd_line = windows.peb().ProcessParameters.CommandLine;
         const cmd_line_w = cmd_line.Buffer.?[0 .. cmd_line.Length / 2];
         const args = try process.ArgIteratorWindows.init(allocator, cmd_line_w);
         return .{
@@ -67,3 +68,47 @@ pub const ArgIterator = struct {
         return self.inner.next();
     }
 };
+
+extern "user32" fn MessageBoxA(
+    hWnd: ?windows.HWND,
+    lpText: ?windows.LPCSTR,
+    lpCaption: ?windows.LPCSTR,
+    uType: u32,
+) callconv(.winapi) i32;
+
+pub const MessageType = enum {
+    Notify,
+    NotifyError,
+    Prompt,
+};
+
+pub fn display_message(msg: [:0]const u8, msg_type: MessageType) bool {
+    if (is_windows) {
+        const MB_OK: u32 = 0;
+        const MB_YESNO: u32 = 4;
+        const MB_ICONERROR: u32 = 0x10;
+        const MB_DEFBUTTON2: u32 = 0x100;
+        const IDOK: u32 = 1;
+        const IDYES: u32 = 6;
+
+        const mode = switch (msg_type) {
+            .Notify => MB_OK,
+            .NotifyError => MB_OK | MB_ICONERROR,
+            .Prompt => MB_YESNO | MB_DEFBUTTON2,
+        };
+
+        const result = MessageBoxA(
+            null,
+            msg,
+            "dtkit-path",
+            mode,
+        );
+
+        if (msg_type == .Prompt) {
+            return result == IDYES;
+        } else {
+            return result == IDOK;
+        }
+    }
+    return false;
+}

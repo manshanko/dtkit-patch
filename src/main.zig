@@ -55,7 +55,7 @@ pub fn main() void {
     } else {
         // Default to toggle so running without arguments works (i.e. Explorer).
 
-        const result = toggle_patch(allocator, db_path, db_bak_path, false) catch |e| abort(e);
+        const result = toggle_patch(allocator, db_path, db_bak_path, !options.toggle) catch |e| abort(e);
         switch (result) {
             .AlreadyPatched => print(patch_error_msg(error.AlreadyPatched)),
             .AppliedPatch => print("successfully patched \"" ++ BUNDLE_DATABASE ++ "\""),
@@ -89,7 +89,7 @@ fn toggle_patch(allocator: std.mem.Allocator, db_path: OsStr, db_bak_path: OsStr
     if (apply_patch(allocator, db_path, db_bak_path)) |result| {
         return switch (result) {
             .AlreadyPatched => {
-                if (interactive and prompt_user("Darktide is already patched.\nWould you like to remove the path?")) {
+                if (!interactive or os.display_message("Darktide is already patched.\nWould you like to remove the path?", .Prompt)) {
                     try restore_backup(db_path, db_bak_path);
                     return .RemovedPatch;
                 } else {
@@ -97,11 +97,12 @@ fn toggle_patch(allocator: std.mem.Allocator, db_path: OsStr, db_bak_path: OsStr
                 }
             },
             .AppliedPatch => {
-                if (interactive) _ = prompt_user("Successfully patched Darktide to load mods.");
+                if (interactive) _ = os.display_message("Successfully patched Darktide to load mods.", .Notify);
                 return .AppliedPatch;
             }
         };
     } else |e| {
+        if (interactive) _ = os.display_message(patch_error_msg(e), .NotifyError);
         return e;
     }
 }
@@ -216,12 +217,6 @@ fn read_database(allocator: std.mem.Allocator, path: OsStr) !file_data {
     };
 }
 
-fn prompt_user(comptime msg: [:0]const u8) bool {
-    const msg_wide = comptime os.into_os_str(msg);
-    _ = &msg_wide;
-    return false;
-}
-
 const PatchError = error{
     AlreadyPatched,
     Unsupported,
@@ -231,7 +226,7 @@ const PatchError = error{
     NotFoundBackup,
 };
 
-fn patch_error_msg(err: anyerror) []const u8 {
+fn patch_error_msg(err: anyerror) [:0]const u8 {
     return switch (err) {
         error.AlreadyPatched => "\"" ++ BUNDLE_DATABASE ++ "\" is already patched",
         error.Unsupported => "found unsupported changes in \"" ++ BUNDLE_DATABASE ++ "\"",

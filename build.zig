@@ -14,6 +14,7 @@ pub fn build(b: *std.Build) void {
             .unwind_tables = .none,
         }),
     });
+    exe.linkSystemLibrary("user32");
 
     b.installArtifact(exe);
 
