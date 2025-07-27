@@ -42,10 +42,7 @@ fn execute() ![]const u8 {
 
     const options = cli.PatchOptions.init(&args);
 
-    const dir = options.path orelse {
-        error_print("expected path");
-        std.process.exit(1);
-    };
+    const dir = options.path orelse return error.NotFoundDarktide;
 
     const db_path = try os.path_join(allocator, dir, BUNDLE_DATABASE_OS);
     const db_bak_path = try os.path_join(allocator, dir, BUNDLE_DATABASE_BAK_OS);
@@ -231,6 +228,7 @@ const PatchError = error{
     OutOfMemory,
     NotFoundDatabase,
     NotFoundBackup,
+    NotFoundDarktide,
 };
 
 fn patch_error_msg(err: anyerror) [:0]const u8 {
@@ -241,6 +239,7 @@ fn patch_error_msg(err: anyerror) [:0]const u8 {
         error.OutOfMemory => "out of memory",
         error.NotFoundDatabase => "failed to find \"" ++ BUNDLE_DATABASE ++ "\"",
         error.NotFoundBackup => "failed to find \"" ++ BUNDLE_DATABASE_BAK ++ "\"",
+        error.NotFoundDarktide => "failed to find Darktide installation",
         error.BadPathName => "directory is an invalid path",
         else => {
             if (builtin.mode != .ReleaseSmall) {
