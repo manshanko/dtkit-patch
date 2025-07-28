@@ -70,7 +70,9 @@ const Option = enum {
 
     fn match(tag: OsStr) ?Self {
         for (0..fields.len) |i| {
-            if (std.mem.eql(pointee, lookup.keys[i], tag)) {
+            const key = lookup.keys[i];
+            if (key.len == tag.len) {
+                for (0..key.len) |j| if (key[j] != tag[j]) continue;
                 return lookup.values[i];
             }
         }
