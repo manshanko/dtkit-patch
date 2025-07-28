@@ -176,7 +176,6 @@ fn apply_patch(allocator: std.mem.Allocator, db_path: OsStr, db_bak_path: OsStr)
     mem.memcpy(data.buffer[offset..offset + MOD_PATCH.len], MOD_PATCH);
 
     // create backup database
-    _ = os.fs_unlink(db_bak_path) catch {};
     os.fs_rename(db_path, db_bak_path) catch |err| return switch (err) {
         error.FileNotFound => error.NotFoundDatabase,
         else => return err,
@@ -190,10 +189,6 @@ fn apply_patch(allocator: std.mem.Allocator, db_path: OsStr, db_bak_path: OsStr)
 }
 
 fn restore_backup(db_path: OsStr, db_bak_path: OsStr) !void {
-    os.fs_unlink(db_path) catch |err| return switch (err) {
-        error.FileNotFound => error.NotFoundBackup,
-        else => return err,
-    };
     os.fs_rename(db_bak_path, db_path) catch |err| return switch (err) {
         error.FileNotFound => error.NotFoundBackup,
         else => return err,
@@ -231,7 +226,8 @@ fn read_database(allocator: std.mem.Allocator, path: OsStr) !file_data {
         error.FileNotFound => error.NotFoundDatabase,
         else => return err,
     };
-    defer if (!leak_resources) file.close();
+    // Must close file to rename without unlinking.
+    defer file.close();
 
     const stat = try file.stat();
     const size = stat.size;

@@ -34,10 +34,6 @@ pub fn path_join(allocator: std.mem.Allocator, dir: OsStr, part: OsStr) !OsStr {
     return buffer;
 }
 
-pub fn fs_unlink(path: OsStr) !void {
-    return std.posix.unlinkW(path);
-}
-
 pub fn fs_rename(old: OsStr, new: OsStr) !void {
     return std.posix.renameW(old, new);
 }
