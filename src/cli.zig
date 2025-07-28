@@ -98,27 +98,17 @@ pub const PatchOptions = struct {
         var unpatch = false;
         var toggle = false;
         var path: ?OsStr = null;
+
         while (args.next()) |arg| {
             num_args += 1;
-            if (num_opts > 0) {
-                // TODO: ignore arg
-                continue;
-            }
-
             if (Option.match(arg)) |opt| {
+                num_opts += 1;
                 switch (opt) {
                     .h, .help => help = true,
                     .interactive => interactive = true,
                     .patch => patch = true,
                     .unpatch => unpatch = true,
                     .toggle => toggle = true,
-                }
-
-                if (help or patch or unpatch or toggle) {
-                    num_opts = 1;
-                }
-                if (patch or unpatch or toggle) {
-                    if (path == null) path = args.next();
                 }
             } else if (path == null) {
                 path = arg;
