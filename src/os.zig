@@ -2,8 +2,8 @@ const builtin = @import("builtin");
 const std = @import("std");
 const windows = std.os.windows;
 
+const root = @import("root");
 const process = @import("zig-std/process.zig");
-
 const mem = @import("mem.zig");
 
 const is_windows = builtin.os.tag == .windows;
@@ -44,6 +44,24 @@ pub fn fs_createFile(path: OsStr) !std.fs.File {
 
 pub fn fs_openFile(path: OsStr) !std.fs.File {
     return std.fs.cwd().openFileW(path, .{});
+}
+
+pub fn read_file(allocator: std.mem.Allocator, path: OsStr) ![]u8 {
+    const file = fs_openFile(path) catch |err| return switch (err) {
+        error.FileNotFound => error.NotFoundDatabase,
+        else => return err,
+    };
+    // Must close file to rename without unlinking.
+    defer file.close();
+
+    const stat = try file.stat();
+    const size = stat.size;
+
+    const data = try allocator.alloc(u8, size);
+    errdefer if (!root.leak_resources) allocator.free(data);
+
+    _ = try file.readAll(data[0..size]);
+    return data;
 }
 
 pub const ArgIterator = struct {

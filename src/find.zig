@@ -164,23 +164,6 @@ fn steam_dir_reg(out: []u16) error{KeyNotFound, Unsupported}!u32 {
     return error.KeyNotFound;
 }
 
-fn read_file(allocator: std.mem.Allocator, path: OsStr) ![]u8 {
-    const file = os.fs_openFile(path) catch |err| return switch (err) {
-        error.FileNotFound => error.NotFoundDatabase,
-        else => return err,
-    };
-    defer if (!root.leak_resources) file.close();
-
-    const stat = try file.stat();
-    const size = stat.size;
-
-    const data = try allocator.alloc(u8, size);
-    errdefer if (!root.leak_resources) allocator.free(data);
-
-    const read = try file.readAll(data[0..size]);
-    return data[0..read];
-}
-
 fn parse_string(data: []const u8, out: []u8) ?u32 {
     if (data[0] != '"') return null;
 
@@ -348,7 +331,7 @@ pub fn find_darktide_steam(allocator: std.mem.Allocator) !OsStr {
         offset += library_vdf.len;
         path_buffer[offset] = 0;
 
-        const data = try read_file(allocator, path_buffer[0..offset :0]);
+        const data = try os.read_file(allocator, path_buffer[0..offset :0]);
         defer if (!root.leak_resources) allocator.free(data);
 
         var index: usize = 0;

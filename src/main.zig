@@ -135,10 +135,10 @@ fn toggle_patch(allocator: std.mem.Allocator, db_path: OsStr, db_bak_path: OsStr
 }
 
 fn remove_patch(allocator: std.mem.Allocator, db_path: OsStr, db_bak_path: OsStr) !UnpatchResult {
-    const data = try read_database(allocator, db_path);
-    defer if (!leak_resources) allocator.free(data.buffer);
+    const data = try os.read_file(allocator, db_path);
+    defer if (!leak_resources) allocator.free(data);
 
-    if (scan_database(data.buffer[0..data.read])) |_| {
+    if (scan_database(data)) |_| {
         return .NotPatched;
     } else |e| {
         if (e == error.AlreadyPatched) {
@@ -150,30 +150,18 @@ fn remove_patch(allocator: std.mem.Allocator, db_path: OsStr, db_bak_path: OsStr
     }
 }
 
-fn apply_patch(allocator: std.mem.Allocator, db_path: OsStr, db_bak_path: OsStr) !PatchResult {
-    const data = try read_database(allocator, db_path);
-    defer if (!leak_resources) allocator.free(data.buffer);
+noinline fn write_chunk(file: *std.fs.File, chunk: []const u8) !void {
+    _ = try file.writeAll(chunk);
+}
 
-    const offset = scan_database(data.buffer[0..data.read]) catch |e| switch (e) {
+fn apply_patch(allocator: std.mem.Allocator, db_path: OsStr, db_bak_path: OsStr) !PatchResult {
+    const data = try os.read_file(allocator, db_path);
+    defer if (!leak_resources) allocator.free(data);
+
+    const offset = scan_database(data) catch |e| switch (e) {
         error.AlreadyPatched => return .AlreadyPatched,
         else => return e,
     };
-
-    // insert data
-    const extra_size = MOD_PATCH.len - OLD_SIZE;
-    if (disable_memcpy) {
-        const start = offset + MOD_PATCH.len;
-        const end = data.read + extra_size;
-        const len = end - start;
-        const shift = MOD_PATCH.len - OLD_SIZE;
-        for (0..len) |i| data.buffer[end - i - 1] = data.buffer[end - i - 1 - shift];
-    } else {
-        @memmove(
-            data.buffer[offset + MOD_PATCH.len..data.read + extra_size],
-            data.buffer[offset + OLD_SIZE..data.read],
-        );
-    }
-    mem.memcpy(data.buffer[offset..offset + MOD_PATCH.len], MOD_PATCH);
 
     // create backup database
     os.fs_rename(db_path, db_bak_path) catch |err| return switch (err) {
@@ -183,7 +171,9 @@ fn apply_patch(allocator: std.mem.Allocator, db_path: OsStr, db_bak_path: OsStr)
 
     // write patched database
     var db = try os.fs_createFile(db_path);
-    _ = try db.write(data.buffer[0..data.read + extra_size]);
+    _ = try db.writeAll(data[0..offset]);
+    _ = try db.writeAll(MOD_PATCH);
+    _ = try db.writeAll(data[offset + OLD_SIZE..]);
 
     return .AppliedPatch;
 }
@@ -214,32 +204,6 @@ fn scan_database(data: []const u8) !usize {
     } else {
         return error.BadFormat;
     }
-}
-
-const file_data = struct {
-    buffer: []u8,
-    read: usize,
-};
-
-fn read_database(allocator: std.mem.Allocator, path: OsStr) !file_data {
-    const file = os.fs_openFile(path) catch |err| return switch (err) {
-        error.FileNotFound => error.NotFoundDatabase,
-        else => return err,
-    };
-    // Must close file to rename without unlinking.
-    defer file.close();
-
-    const stat = try file.stat();
-    const size = stat.size;
-
-    const data = try allocator.alloc(u8, size + MOD_PATCH.len);
-    errdefer if (!leak_resources) allocator.free(data);
-
-    const read = try file.readAll(data[0..size]);
-    return .{
-        .buffer = data,
-        .read = read,
-    };
 }
 
 const PatchError = error{
