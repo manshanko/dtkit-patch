@@ -275,14 +275,23 @@ fn patch_error_msg(err: anyerror) [:0]const u8 {
     };
 }
 
+fn io_stderr() std.fs.File {
+    if (@hasDecl(std.fs.File, "stderr")) {
+        // zig > 0.14.1
+        return std.fs.File.stderr();
+    } else {
+        return std.io.getStdErr();
+    }
+}
+
 fn print(text: []const u8) void {
-    const stderr = std.fs.File.stderr();
+    const stderr = io_stderr();
     _ = stderr.write(text) catch 0;
     _ = stderr.write("\n") catch 0;
 }
 
 fn error_print(text: []const u8) void {
-    const stderr = std.fs.File.stderr();
+    const stderr = io_stderr();
     _ = stderr.write("ERROR: ") catch 0;
     _ = stderr.write(text) catch 0;
     _ = stderr.write("\n") catch 0;
