@@ -54,9 +54,7 @@ pub fn read_file(allocator: std.mem.Allocator, path: OsStr) ![]u8 {
     // Must close file to rename without unlinking.
     defer file.close();
 
-    const stat = try file.stat();
-    const size = stat.size;
-
+    const size = try file.getEndPos();
     const data = try allocator.alloc(u8, size);
     errdefer if (!root.leak_resources) allocator.free(data);
 
