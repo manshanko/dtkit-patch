@@ -202,16 +202,16 @@ fn restore_backup(db_path: OsStr, db_bak_path: OsStr) !void {
 
 fn scan_database(data: []const u8) !usize {
     // look for patch offset
-    if (std.mem.indexOfPosLinear(u8, data, 0, MOD_PATCH_STARTING_POINT)) |offset| {
+    if (mem.index_of_pos(data, 0, MOD_PATCH_STARTING_POINT)) |offset| {
         const slice = data[offset..offset + 512];
 
         // already patched
-        if (std.mem.indexOfPosLinear(u8, slice, 0, MOD_PATCH_TAG)) |_| {
+        if (mem.index_of_pos(slice, 0, MOD_PATCH_TAG)) |_| {
             return error.AlreadyPatched;
         }
 
         // unhandled bundle patch
-        if (std.mem.indexOfPosLinear(u8, slice, 0, BOOT_BUNDLE_NEXT_PATCH)) |_| {
+        if (mem.index_of_pos(slice, 0, BOOT_BUNDLE_NEXT_PATCH)) |_| {
             return error.UnsupportedDatabase;
         }
 

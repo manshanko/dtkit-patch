@@ -15,3 +15,16 @@ pub fn memcpy(dest: anytype, src: anytype) void {
         @memcpy(dest, src);
     }
 }
+
+// based on std.mem.indexOfPosLinear
+pub inline fn index_of_pos(haystack: []const u8, start_index: usize, needle: []const u8) ?usize {
+    if (needle.len > haystack.len) return null;
+
+    var i: usize = start_index;
+    const end = haystack.len - needle.len;
+    search: while (i <= end) : (i += 1) {
+        for (0..needle.len) |j| if (haystack[i + j] != needle[j]) continue :search;
+        return i;
+    }
+    return null;
+}

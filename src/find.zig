@@ -354,17 +354,17 @@ pub fn find_darktide_steam(allocator: std.mem.Allocator) !OsStr {
         var index: usize = 0;
         var buffer: [2048:0]u8 = [_:0]u8{0} ** 2048;
         return path: while (index < data.len) {
-            index = std.mem.indexOfPosLinear(u8, data, index, vdf_path)
+            index = mem.index_of_pos(data, index, vdf_path)
                 orelse return error.NotFoundDarktide;
             index += vdf_path.len;
             while (data[index] != '"') index += 1;
             const size = parse_string(data[index..], &buffer) orelse return error.NotFoundDarktide;
             const path_utf8 = buffer[0..size];
 
-            const end = std.mem.indexOfPosLinear(u8, data, index, end_apps)
+            const end = mem.index_of_pos(data, index, end_apps)
                 orelse return error.NotFoundDarktide;
 
-            if (std.mem.indexOfPosLinear(u8, data[index..end], 0, darktide_id)) |_| {
+            if (mem.index_of_pos(data[index..end], 0, darktide_id)) |_| {
                 var utf16_size: usize = try bad_utf8_to_utf16(path_utf8, path_buffer[4..]);
                 utf16_size += 4;
                 path_buffer[utf16_size] = '\\';
