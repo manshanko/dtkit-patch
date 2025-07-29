@@ -348,8 +348,7 @@ pub fn find_darktide_steam(allocator: std.mem.Allocator) !OsStr {
                 orelse return error.NotFoundDarktide;
 
             if (mem.index_of_pos(data[index..end], 0, darktide_id)) |_| {
-                var utf16_size: usize = try bad_utf8_to_utf16(path_utf8, path_buffer[4..]);
-                utf16_size += 4;
+                var utf16_size: usize = try bad_utf8_to_utf16(path_utf8, path_buffer);
                 path_buffer[utf16_size] = '\\';
                 utf16_size += 1;
                 mem.memcpy(path_buffer[utf16_size..utf16_size + darktide_suffix.len], darktide_suffix);

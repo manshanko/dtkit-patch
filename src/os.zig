@@ -18,20 +18,49 @@ pub fn into_os_str(comptime str: [:0]const u8) OsStr {
     return std.unicode.utf8ToUtf16LeStringLiteral(str);
 }
 
-pub fn path_join(allocator: std.mem.Allocator, dir: OsStr, part: OsStr) !OsStr {
-    var size = dir.len + part.len;
-    if (dir[dir.len - 1] != '\\') {
-        size += 1;
+pub fn path_join(allocator: std.mem.Allocator, dir_os: OsStr, part: OsStr) error{OutOfMemory, BadPathName}!OsStr {
+    if (is_windows) {
+        var tmp: [0]u16 = undefined;
+        const size_new = windows.ntdll.RtlGetFullPathName_U(
+            dir_os,
+            0,
+            &tmp,
+            null,
+        );
+        if (size_new <= 2) return error.BadPathName;
+        var buffer = try allocator.allocSentinel(u16, 4 + (size_new / 2 - 1) + 1 + part.len, 0);
+        errdefer if (!root.leak_resources) allocator.free(buffer);
+
+        const size = windows.ntdll.RtlGetFullPathName_U(
+            dir_os,
+            size_new,
+            buffer[4..].ptr,
+            null,
+        );
+        if (size == 0) return error.BadPathName;
+
+        buffer[0] = '\\';
+        buffer[1] = '?';
+        buffer[2] = '?';
+        buffer[3] = '\\';
+
+        var offset: usize = 4 + size / 2;
+        buffer[offset] = '\\';
+        offset += 1;
+        mem.memcpy(buffer[offset..offset + part.len], part);
+        offset += part.len;
+        buffer[offset] = 0;
+        return buffer[0..offset :0];
+    } else {
+        const buffer = try allocator.allocSentinel(u16, dir_os.len + 1 + part.len, 0);
+        mem.memcpy(buffer[0..dir_os.len], dir_os);
+
+        var offset: usize = dir_os.len;
+        buffer[offset] = '/';
+        offset += 1;
+        mem.memcpy(buffer[offset..offset + part.len], part);
+        return buffer;
     }
-    const buffer = try allocator.allocSentinel(u16, size, 0);
-    mem.memcpy(buffer[0..dir.len], dir);
-    var off = dir.len;
-    if (dir[dir.len - 1] != '\\') {
-        buffer[dir.len] = '\\';
-        off += 1;
-    }
-    mem.memcpy(buffer[off..], part);
-    return buffer;
 }
 
 pub fn fs_rename(old: OsStr, new: OsStr) !void {
