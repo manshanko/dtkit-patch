@@ -11,6 +11,7 @@ pub fn build(b: *std.Build) void {
         target.result.os,
     );
 
+    const unwind_tables: ?std.builtin.UnwindTables = if (optimize == .ReleaseSmall) .none else null;
     const exe = b.addExecutable(.{
         .name = "dtkit-patch",
         .root_module = b.createModule(.{
@@ -18,7 +19,7 @@ pub fn build(b: *std.Build) void {
             .target = target_patch,
             .optimize = optimize,
             .single_threaded = true,
-            .unwind_tables = .none,
+            .unwind_tables = unwind_tables,
         }),
     });
     exe.linkSystemLibrary("user32");
