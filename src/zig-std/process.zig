@@ -63,12 +63,6 @@ pub const ArgIteratorWindows = struct {
         return self.nextWithStrategy(next_strategy);
     }
 
-    /// Skips the next argument and advances the iterator. Returns `true` if an argument was
-    /// skipped, `false` if at the end of the command-line string.
-    pub fn skip(self: *ArgIteratorWindows) bool {
-        return self.nextWithStrategy(skip_strategy);
-    }
-
     const next_strategy = struct {
         const T = ?[:0]const u16;
 
@@ -100,24 +94,6 @@ pub const ArgIteratorWindows = struct {
             self.end += 1;
             self.start = self.end;
             return arg;
-        }
-    };
-
-    const skip_strategy = struct {
-        const T = bool;
-
-        const eof = false;
-
-        fn emitBackslashes(_: *ArgIteratorWindows, _: usize, last_emitted_code_unit: ?u16) ?u16 {
-            return last_emitted_code_unit;
-        }
-
-        fn emitCharacter(_: *ArgIteratorWindows, _: u16, last_emitted_code_unit: ?u16) ?u16 {
-            return last_emitted_code_unit;
-        }
-
-        fn yieldArg(_: *ArgIteratorWindows) bool {
-            return true;
         }
     };
 
@@ -417,16 +393,5 @@ fn testArgIteratorWindows(comptime cmd_line: [:0]const u8, comptime expected_arg
             }
         }
         try std.testing.expect(it.next() == null);
-    }
-
-    // skip
-    {
-        var it = try ArgIteratorWindows.init(std.testing.allocator, cmd_line_w);
-        defer it.deinit();
-
-        for (0..expected_args.len) |_| {
-            try std.testing.expect(it.skip());
-        }
-        try std.testing.expect(!it.skip());
     }
 }
