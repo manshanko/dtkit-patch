@@ -42,7 +42,20 @@ fn map(n: usize, alignment: std.mem.Alignment) ?[*]u8 {
             return null;
         }
     } else {
-        @compileError("leaky_allocator not implemented for other platforms");
+        const slice = std.posix.mmap(
+            null,
+            n,
+            std.posix.PROT.READ | std.posix.PROT.WRITE,
+            .{ .TYPE = .PRIVATE, .ANONYMOUS = true },
+            -1,
+            0,
+        ) catch return null;
+
+        if (std.mem.isAligned(@intFromPtr(slice.ptr), alignment_bytes)) {
+            return slice.ptr;
+        } else {
+            return null;
+        }
     }
 }
 
