@@ -21,7 +21,11 @@ pub const OsStrMut = if (is_windows) res: {
 };
 
 pub fn into_os_str(comptime str: [:0]const u8) OsStr {
-    return std.unicode.utf8ToUtf16LeStringLiteral(str);
+    if (is_windows) {
+        return std.unicode.utf8ToUtf16LeStringLiteral(str);
+    } else {
+        return str;
+    }
 }
 
 pub fn path_join(allocator: std.mem.Allocator, dir_os: OsStr, part: OsStr) error{OutOfMemory, BadPathName}!OsStr {
