@@ -26,8 +26,6 @@ pub const ArgIteratorWindows = struct {
     /// Encoded as WTF-16 LE.
     cmd_line: []const u16,
     index: usize = 0,
-    /// Owned by the iterator. Long enough to hold contiguous NUL-terminated slices
-    /// of each argument encoded as WTF-8.
     buffer: []u16,
     start: usize = 0,
     end: usize = 0,
@@ -58,7 +56,6 @@ pub const ArgIteratorWindows = struct {
 
     /// Returns the next argument and advances the iterator. Returns `null` if at the end of the
     /// command-line string. The iterator owns the returned slice.
-    /// The result is encoded as [WTF-8](https://simonsapin.github.io/wtf-8/).
     pub fn next(self: *ArgIteratorWindows) ?[:0]const u16 {
         return self.nextWithStrategy(next_strategy);
     }
@@ -69,23 +66,16 @@ pub const ArgIteratorWindows = struct {
         const eof = null;
 
         /// Returns '\' if any backslashes are emitted, otherwise returns `last_emitted_code_unit`.
-        fn emitBackslashes(self: *ArgIteratorWindows, count: usize, last_emitted_code_unit: ?u16) ?u16 {
+        fn emitBackslashes(self: *ArgIteratorWindows, count: usize) void {
             for (0..count) |_| {
                 self.buffer[self.end] = '\\';
                 self.end += 1;
             }
-            return if (count != 0) '\\' else last_emitted_code_unit;
         }
 
-        /// If `last_emitted_code_unit` and `code_unit` form a surrogate pair, then
-        /// the previously emitted high surrogate is overwritten by the codepoint encoded
-        /// by the surrogate pair, and `null` is returned.
-        /// Otherwise, `code_unit` is emitted and returned.
-        fn emitCharacter(self: *ArgIteratorWindows, code_unit: u16, last_emitted_code_unit: ?u16) ?u16 {
-            _ = last_emitted_code_unit;
+        fn emitCharacter(self: *ArgIteratorWindows, code_unit: u16) void {
             self.buffer[self.end] = code_unit;
             self.end += 1;
-            return code_unit;
         }
 
         fn yieldArg(self: *ArgIteratorWindows) [:0]const u16 {
@@ -98,7 +88,6 @@ pub const ArgIteratorWindows = struct {
     };
 
     fn nextWithStrategy(self: *ArgIteratorWindows, comptime strategy: type) strategy.T {
-        var last_emitted_code_unit: ?u16 = null;
         // The first argument (the executable name) uses different parsing rules.
         if (self.index == 0) {
             if (self.cmd_line.len == 0 or self.cmd_line[0] == 0) {
@@ -122,14 +111,14 @@ pub const ArgIteratorWindows = struct {
                     },
                     ' ', '\t' => {
                         if (inside_quotes) {
-                            last_emitted_code_unit = strategy.emitCharacter(self, char, last_emitted_code_unit);
+                            strategy.emitCharacter(self, char);
                         } else {
                             self.index += 1;
                             return strategy.yieldArg(self);
                         }
                     },
                     else => {
-                        last_emitted_code_unit = strategy.emitCharacter(self, char, last_emitted_code_unit);
+                        strategy.emitCharacter(self, char);
                     },
                 }
             }
@@ -167,28 +156,28 @@ pub const ArgIteratorWindows = struct {
                 0;
             switch (char) {
                 0 => {
-                    last_emitted_code_unit = strategy.emitBackslashes(self, backslash_count, last_emitted_code_unit);
+                    strategy.emitBackslashes(self, backslash_count);
                     return strategy.yieldArg(self);
                 },
                 ' ', '\t' => {
-                    last_emitted_code_unit = strategy.emitBackslashes(self, backslash_count, last_emitted_code_unit);
+                    strategy.emitBackslashes(self, backslash_count);
                     backslash_count = 0;
                     if (inside_quotes) {
-                        last_emitted_code_unit = strategy.emitCharacter(self, char, last_emitted_code_unit);
+                        strategy.emitCharacter(self, char);
                     } else return strategy.yieldArg(self);
                 },
                 '"' => {
                     const char_is_escaped_quote = backslash_count % 2 != 0;
-                    last_emitted_code_unit = strategy.emitBackslashes(self, backslash_count / 2, last_emitted_code_unit);
+                    strategy.emitBackslashes(self, backslash_count / 2);
                     backslash_count = 0;
                     if (char_is_escaped_quote) {
-                        last_emitted_code_unit = strategy.emitCharacter(self, '"', last_emitted_code_unit);
+                        strategy.emitCharacter(self, '"');
                     } else {
                         if (inside_quotes and
                             self.index + 1 != self.cmd_line.len and
                             mem.littleToNative(u16, self.cmd_line[self.index + 1]) == '"')
                         {
-                            last_emitted_code_unit = strategy.emitCharacter(self, '"', last_emitted_code_unit);
+                            strategy.emitCharacter(self, '"');
                             self.index += 1;
                         } else {
                             inside_quotes = !inside_quotes;
@@ -199,9 +188,9 @@ pub const ArgIteratorWindows = struct {
                     backslash_count += 1;
                 },
                 else => {
-                    last_emitted_code_unit = strategy.emitBackslashes(self, backslash_count, last_emitted_code_unit);
+                    strategy.emitBackslashes(self, backslash_count);
                     backslash_count = 0;
-                    last_emitted_code_unit = strategy.emitCharacter(self, char, last_emitted_code_unit);
+                    strategy.emitCharacter(self, char);
                 },
             }
         }
