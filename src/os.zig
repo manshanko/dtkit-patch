@@ -104,19 +104,27 @@ pub fn read_file(allocator: std.mem.Allocator, path: OsStr) ![]u8 {
 pub const ArgIterator = struct {
     const Self = @This();
 
-    inner: process.ArgIteratorWindows,
+    const Iter = if (is_windows) process.ArgIteratorWindows else std.process.ArgIteratorPosix;
+
+    inner: Iter,
 
     pub fn init(allocator: std.mem.Allocator) !Self {
-        const cmd_line = windows.peb().ProcessParameters.CommandLine;
-        const cmd_line_w = cmd_line.Buffer.?[0 .. cmd_line.Length / 2];
-        const args = try process.ArgIteratorWindows.init(allocator, cmd_line_w);
-        return .{
-            .inner = args,
-        };
+        if (is_windows) {
+            const cmd_line = windows.peb().ProcessParameters.CommandLine;
+            const cmd_line_w = cmd_line.Buffer.?[0 .. cmd_line.Length / 2];
+            const args = try process.ArgIteratorWindows.init(allocator, cmd_line_w);
+            return .{
+                .inner = args,
+            };
+        } else {
+            return .{
+                .inner = std.process.ArgIteratorPosix.init(),
+            };
+        }
     }
 
     pub fn deinit(self: *Self) void {
-        self.inner.deinit();
+        if (is_windows) self.inner.deinit();
     }
 
     pub fn next(self: *Self) ?OsStr {
