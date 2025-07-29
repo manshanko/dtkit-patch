@@ -4,11 +4,18 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    // Disable AVX since some users have CPUs which don't support it (Pentium G4560).
+    var target_patch = target;
+    target_patch.result.cpu.model = std.Target.Cpu.Model.baseline(
+        target.result.cpu.arch,
+        target.result.os,
+    );
+
     const exe = b.addExecutable(.{
         .name = "dtkit-patch",
         .root_module = b.createModule(.{
             .root_source_file = b.path("src/main.zig"),
-            .target = target,
+            .target = target_patch,
             .optimize = optimize,
             .single_threaded = true,
             .unwind_tables = .none,
