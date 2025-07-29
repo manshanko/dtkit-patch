@@ -22,8 +22,11 @@ pub fn build(b: *std.Build) void {
             .unwind_tables = unwind_tables,
         }),
     });
-    exe.linkSystemLibrary("user32");
-    exe.linkSystemLibrary("advapi32");
+
+    if (target.result.os.tag == .windows) {
+        exe.linkSystemLibrary("user32");
+        exe.linkSystemLibrary("advapi32");
+    }
 
     b.installArtifact(exe);
 
