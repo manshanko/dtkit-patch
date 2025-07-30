@@ -11,6 +11,7 @@ pub fn build(b: *std.Build) void {
         target.result.os,
     );
 
+    const strip = b.option(bool, "strip", "strip debug information");
     const unwind_tables: ?std.builtin.UnwindTables = if (optimize == .ReleaseSmall) .none else null;
     const exe = b.addExecutable(.{
         .name = "dtkit-patch",
@@ -20,6 +21,7 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
             .single_threaded = true,
             .unwind_tables = unwind_tables,
+            .strip = strip,
         }),
     });
 
