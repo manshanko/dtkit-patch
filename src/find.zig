@@ -8,6 +8,7 @@ const root = @import("root");
 const mem = @import("mem.zig");
 const os = @import("os.zig");
 const OsStr = os.OsStr;
+const OsStrMut = os.OsStrMut;
 
 const darktide_class_path =
     \\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\Repository\Families\FatsharkAB.Warhammer40000DarktideNew_hwm6pnepa3ng2
@@ -307,56 +308,75 @@ test bad_utf8_to_utf16 {
     }
 }
 
-pub fn find_darktide_steam(allocator: std.mem.Allocator) !OsStr {
-    if (builtin.os.tag == .windows) {
-        const vdf_path = "\n\t\t\"path\"";
-        const darktide_id = "\n\t\t\t\"1361210";
-        const end_apps = "\n\t\t}";
-        const darktide_suffix = os.into_os_str(
-            \\steamapps\common\Warhammer 40,000 DARKTIDE\bundle
-        );
+fn find_game_path(allocator: std.mem.Allocator, path_buffer: OsStrMut, len: usize) !OsStr {
+    // Steam stores the game path in appmanifest_*.acf
+    // We may need to handle that.
+    const darktide_suffix = os.into_os_str(
+        \\steamapps\common\Warhammer 40,000 DARKTIDE\bundle
+    );
 
+    const vdf_path = "\n\t\t\"path\"";
+    const darktide_id = "\n\t\t\t\"1361210";
+    const end_apps = "\n\t\t}";
+
+    const data = try os.read_file(allocator, path_buffer[0..len :0]);
+    defer if (!root.leak_resources) allocator.free(data);
+
+    var index: usize = 0;
+    var buffer: [2048:0]u8 = [_:0]u8{0} ** 2048;
+    while (index < data.len) {
+        index = mem.index_of_pos(data, index, vdf_path)
+            orelse return error.NotFoundDarktide;
+        index += vdf_path.len;
+        while (data[index] != '"') index += 1;
+        const size = parse_string(data[index..], &buffer) orelse return error.NotFoundDarktide;
+        const path_utf8 = buffer[0..size];
+
+        const end = mem.index_of_pos(data, index, end_apps)
+            orelse return error.NotFoundDarktide;
+
+        if (mem.index_of_pos(data[index..end], 0, darktide_id)) |_| {
+            if (builtin.os.tag == .windows) {
+                var utf16_size: usize = try bad_utf8_to_utf16(path_utf8, path_buffer);
+                path_buffer[utf16_size] = '\\';
+                utf16_size += 1;
+                mem.memcpy(path_buffer[utf16_size..utf16_size + darktide_suffix.len], darktide_suffix);
+                utf16_size += darktide_suffix.len;
+
+                var out = try allocator.allocSentinel(u16, utf16_size, 0);
+                mem.memcpy(out[0..utf16_size], path_buffer[0..utf16_size]);
+                return out;
+            } else {
+                @compileError("find_game_path is currently only supported on windows");
+            }
+        }
+    }
+    return error.NotFoundDarktide;
+}
+
+pub fn find_darktide_steam(allocator: std.mem.Allocator) error{OutOfMemory, NotFoundDarktide}!OsStr {
+    if (builtin.os.tag == .windows) {
         var path_buffer = try allocator.alloc(u16, 2048);
-        errdefer if (!root.leak_resources) allocator.free(path_buffer);
+        defer if (!root.leak_resources) allocator.free(path_buffer);
 
         path_buffer[0] = '\\';
         path_buffer[1] = '?';
         path_buffer[2] = '?';
         path_buffer[3] = '\\';
         var offset: u32 = 4;
-        offset += try steam_dir_reg(path_buffer[offset..path_buffer.len - 1]);
+        offset += steam_dir_reg(path_buffer[offset..path_buffer.len - 1]) catch return error.NotFoundDarktide;
         path_buffer[offset] = '\\';
         offset += 1;
         mem.memcpy(path_buffer[offset..offset + library_vdf.len], library_vdf);
         offset += library_vdf.len;
         path_buffer[offset] = 0;
+        path_buffer[path_buffer.len - 1] = 0;
 
-        const data = try os.read_file(allocator, path_buffer[0..offset :0]);
-        defer if (!root.leak_resources) allocator.free(data);
-
-        var index: usize = 0;
-        var buffer: [2048:0]u8 = [_:0]u8{0} ** 2048;
-        return path: while (index < data.len) {
-            index = mem.index_of_pos(data, index, vdf_path)
-                orelse return error.NotFoundDarktide;
-            index += vdf_path.len;
-            while (data[index] != '"') index += 1;
-            const size = parse_string(data[index..], &buffer) orelse return error.NotFoundDarktide;
-            const path_utf8 = buffer[0..size];
-
-            const end = mem.index_of_pos(data, index, end_apps)
-                orelse return error.NotFoundDarktide;
-
-            if (mem.index_of_pos(data[index..end], 0, darktide_id)) |_| {
-                var utf16_size: usize = try bad_utf8_to_utf16(path_utf8, path_buffer);
-                path_buffer[utf16_size] = '\\';
-                utf16_size += 1;
-                mem.memcpy(path_buffer[utf16_size..utf16_size + darktide_suffix.len], darktide_suffix);
-                utf16_size += darktide_suffix.len;
-                path_buffer[utf16_size] = 0;
-                break :path path_buffer[0..utf16_size :0];
-            }
-        } else return error.NotFoundDarktide;
+        return find_game_path(allocator, path_buffer[0..path_buffer.len - 1 :0], offset)
+            catch |e| return switch (e) {
+                error.OutOfMemory => error.OutOfMemory,
+                else => error.NotFoundDarktide,
+            };
     } else {
         @compileError("find_darktide_steam is currently only supported on windows");
     }

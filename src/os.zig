@@ -14,6 +14,12 @@ pub const OsStr = if (is_windows) res: {
     break :res [:0]const u8;
 };
 
+pub const OsStrMut = if (is_windows) res: {
+    break :res [:0]u16;
+} else res: {
+    break :res [:0]u8;
+};
+
 pub fn into_os_str(comptime str: [:0]const u8) OsStr {
     return std.unicode.utf8ToUtf16LeStringLiteral(str);
 }
