@@ -10,7 +10,7 @@ const os = @import("os.zig");
 const OsStr = os.OsStr;
 
 pub const disable_memcpy = builtin.mode == .ReleaseSmall;
-pub const leak_resources = disable_memcpy;
+pub const leak_resources = builtin.mode != .Debug;
 
 const BUNDLE_DATABASE = "bundle_database.data";
 const BUNDLE_DATABASE_OS = os.into_os_str(BUNDLE_DATABASE);
