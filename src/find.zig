@@ -31,8 +31,8 @@ const steam_path = os.into_os_str("SteamPath");
 const install_path = os.into_os_str("InstallPath");
 const library_vdf = if (builtin.os.tag == .windows) path: {
     break :path os.into_os_str("steamapps\\libraryfolders.vdf");
-} else {
-    @compileError("currently only windows is supported");
+} else path: {
+    break :path "steamapps/libraryfolders.vdf";
 };
 
 const REG_SZ = 1;
@@ -312,7 +312,9 @@ fn find_game_path(allocator: std.mem.Allocator, path_buffer: OsStrMut, len: usiz
     // Steam stores the game path in appmanifest_*.acf
     // We may need to handle that.
     const darktide_suffix = os.into_os_str(
-        \\steamapps\common\Warhammer 40,000 DARKTIDE\bundle
+        if (builtin.os.tag == .windows)
+            \\steamapps\common\Warhammer 40,000 DARKTIDE\bundle
+        else "steamapps/common/Warhammer 40,000 DARKTIDE/bundle"
     );
 
     const vdf_path = "\n\t\t\"path\"";
@@ -347,7 +349,11 @@ fn find_game_path(allocator: std.mem.Allocator, path_buffer: OsStrMut, len: usiz
                 mem.memcpy(out[0..utf16_size], path_buffer[0..utf16_size]);
                 return out;
             } else {
-                @compileError("find_game_path is currently only supported on windows");
+                var out = try allocator.allocSentinel(u8, size + darktide_suffix.len, 0);
+                mem.memcpy(out[0..size], path_utf8);
+                out[size] = '/';
+                mem.memcpy(out[size + 1..], darktide_suffix);
+                return out;
             }
         }
     }
@@ -378,6 +384,24 @@ pub fn find_darktide_steam(allocator: std.mem.Allocator) error{OutOfMemory, NotF
                 else => error.NotFoundDarktide,
             };
     } else {
-        @compileError("find_darktide_steam is currently only supported on windows");
+        var path_buffer: [2048:0]u8 = [_:0]u8{0} ** 2048;
+
+        const home = std.posix.getenv("HOME") orelse return error.NotFoundDarktide;
+        mem.memcpy(path_buffer[0..home.len], home);
+        var offset: usize = home.len;
+        if (path_buffer[offset] != '/') {
+            path_buffer[offset] = '/';
+            offset += 1;
+        }
+        const append = ".steam/steam/" ++ library_vdf;
+        mem.memcpy(path_buffer[offset..offset + append.len], append);
+        offset += append.len;
+        path_buffer[offset] = 0;
+
+        return find_game_path(allocator, path_buffer[0..path_buffer.len - 1 :0], offset)
+            catch |e| return switch (e) {
+                error.OutOfMemory => error.OutOfMemory,
+                else => error.NotFoundDarktide,
+            };
     }
 }
