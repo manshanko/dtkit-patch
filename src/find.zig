@@ -142,10 +142,12 @@ pub fn find_darktide_gamepass(allocator: std.mem.Allocator) error{KeyNotFound, U
         const app_info_key = try open_key(windows.HKEY_LOCAL_MACHINE, &buffer);
         defer if (!root.leak_resources) { _ = windows.advapi32.RegCloseKey(app_info_key); };
 
-        var out = try allocator.alloc(u16, 2048);
-        errdefer if (!root.leak_resources) allocator.free(out);
+        const out_buffer = try allocator.alloc(u16, 2048);
+        errdefer if (!root.leak_resources) allocator.free(out_buffer);
 
-        const size = try key_get_value(app_info_key, installed_location, out);
+        const size = try key_get_value(app_info_key, installed_location, out_buffer);
+        var out = try allocator.alloc(u16, size + 1);
+        mem.memcpy(out[0..size], out_buffer[0..size]);
         out[size] = 0;
         return out[0..size :0];
     } else {
