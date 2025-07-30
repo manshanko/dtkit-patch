@@ -64,8 +64,12 @@ pub fn path_join(allocator: std.mem.Allocator, dir_os: OsStr, part: OsStr) error
         }
         mem.memcpy(buffer[offset..offset + part.len], part);
         offset += part.len;
-        buffer[offset] = 0;
-        return buffer[0..offset :0];
+        if (!root.leak_resources and offset != buffer.len) {
+            const buffer2 = try allocator.dupeZ(u16, buffer[0..offset]);
+            allocator.free(buffer);
+            buffer = buffer2;
+        }
+        return buffer;
     } else {
         const buffer = try allocator.allocSentinel(u8, dir_os.len + 1 + part.len, 0);
         mem.memcpy(buffer[0..dir_os.len], dir_os);
