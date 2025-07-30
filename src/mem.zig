@@ -30,7 +30,12 @@ comptime {
     }
 }
 
-// See zig/lib/compiler_rt/memcpy.zig
+// The memcpy_ and memset_ implementation is from compiler_rt in Zig.
+//
+// Copyright (c) Zig contributors
+// https://github.com/ziglang/zig/blob/d03a147ea0a590ca711b3db07106effc559b0fc6/LICENSE
+
+// zig/lib/compiler_rt/memcpy.zig
 fn memcpy_(noalias dest: ?[*]u8, noalias src: ?[*]u8, len: usize) callconv(.c) ?[*]u8 {
     @setRuntimeSafety(false);
 
@@ -41,7 +46,7 @@ fn memcpy_(noalias dest: ?[*]u8, noalias src: ?[*]u8, len: usize) callconv(.c) ?
     return dest;
 }
 
-// See zig/lib/compiler_rt/memset.zig
+// zig/lib/compiler_rt/memset.zig
 fn memset_(dest: ?[*]u8, c: u8, len: usize) callconv(.c) ?[*]u8 {
     @setRuntimeSafety(false);
 
