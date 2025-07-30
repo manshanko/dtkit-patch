@@ -76,15 +76,27 @@ pub fn path_join(allocator: std.mem.Allocator, dir_os: OsStr, part: OsStr) error
 }
 
 pub fn fs_rename(old: OsStr, new: OsStr) !void {
-    return std.posix.renameW(old, new);
+    if (is_windows) {
+        return std.posix.renameW(old, new);
+    } else {
+        return std.posix.renameZ(old, new);
+    }
 }
 
 pub fn fs_createFile(path: OsStr) !std.fs.File {
-    return std.fs.cwd().createFileW(path, .{});
+    if (is_windows) {
+        return std.fs.cwd().createFileW(path, .{});
+    } else {
+        return std.fs.cwd().createFileZ(path, .{});
+    }
 }
 
 pub fn fs_openFile(path: OsStr) !std.fs.File {
-    return std.fs.cwd().openFileW(path, .{});
+    if (is_windows) {
+        return std.fs.cwd().openFileW(path, .{});
+    } else {
+        return std.fs.cwd().openFileZ(path, .{});
+    }
 }
 
 pub fn read_file(allocator: std.mem.Allocator, path: OsStr) ![]u8 {
