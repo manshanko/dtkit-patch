@@ -28,6 +28,15 @@ pub fn into_os_str(comptime str: [:0]const u8) OsStr {
     }
 }
 
+pub fn stderr() std.fs.File {
+    if (@hasDecl(std.fs.File, "stderr")) {
+        // zig > 0.14.1
+        return std.fs.File.stderr();
+    } else {
+        return std.io.getStdErr();
+    }
+}
+
 pub fn path_join(allocator: std.mem.Allocator, dir_os: OsStr, part: OsStr) error{OutOfMemory, BadPathName}!OsStr {
     if (is_windows) {
         const last = dir_os[dir_os.len - 1];
