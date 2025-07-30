@@ -62,12 +62,14 @@ pub fn path_join(allocator: std.mem.Allocator, dir_os: OsStr, part: OsStr) error
         buffer[offset] = 0;
         return buffer[0..offset :0];
     } else {
-        const buffer = try allocator.allocSentinel(u16, dir_os.len + 1 + part.len, 0);
+        const buffer = try allocator.allocSentinel(u8, dir_os.len + 1 + part.len, 0);
         mem.memcpy(buffer[0..dir_os.len], dir_os);
 
         var offset: usize = dir_os.len;
-        buffer[offset] = '/';
-        offset += 1;
+        if (buffer[offset] != '/') {
+            buffer[offset] = '/';
+            offset += 1;
+        }
         mem.memcpy(buffer[offset..offset + part.len], part);
         return buffer;
     }
