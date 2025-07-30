@@ -175,10 +175,6 @@ fn remove_patch(allocator: std.mem.Allocator, db_path: OsStr, db_bak_path: OsStr
     return .RemovedPatch;
 }
 
-noinline fn write_chunk(file: *std.fs.File, chunk: []const u8) !void {
-    _ = try file.writeAll(chunk);
-}
-
 fn apply_patch(allocator: std.mem.Allocator, db_path: OsStr, db_bak_path: OsStr) !PatchResult {
     const data = os.read_file(allocator, db_path) catch |e| return switch (e) {
         error.FileNotFound => error.NotFoundDarktide,
@@ -198,10 +194,13 @@ fn apply_patch(allocator: std.mem.Allocator, db_path: OsStr, db_bak_path: OsStr)
     };
 
     // write patched database
-    var db = try os.fs_createFile(db_path);
-    _ = try db.writeAll(data[0..offset]);
-    _ = try db.writeAll(MOD_PATCH);
-    _ = try db.writeAll(data[offset + OLD_SIZE..]);
+    const db = try os.fs_createFile(db_path);
+    for ([_][]const u8{data[0..offset], MOD_PATCH, data[offset + OLD_SIZE..]}) |chunk| {
+        db.writeAll(chunk) catch |err| {
+            try restore_backup(db_path, db_bak_path);
+            return if (leak_resources) error.Unexpected else err;
+        };
+    }
 
     return .AppliedPatch;
 }
@@ -233,16 +232,6 @@ fn scan_database(data: []const u8) !usize {
         return error.BadFormat;
     }
 }
-
-const PatchError = error{
-    AlreadyPatched,
-    UnsupportedDatabase,
-    BadFormat,
-    OutOfMemory,
-    NotFoundDatabase,
-    NotFoundBackup,
-    NotFoundDarktide,
-};
 
 fn print(text: []const u8) void {
     const stderr = os.stderr();
