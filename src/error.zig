@@ -120,7 +120,7 @@ const lookup_buffer: [buffer_size]u8 = lookup: {
     break :lookup buffer;
 };
 
-pub fn lookup(err: PatcherError) [:0]const u8 {
+pub noinline fn lookup(err: PatcherError) [:0]const u8 {
     var index = @intFromError(err);
     if (index > last_error) return "unexpected error";
     var offset: usize = 0;
