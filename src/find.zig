@@ -108,7 +108,7 @@ fn key_get_value(key: windows.HKEY, name: [:0]const u16, out: []u16) error{KeyNo
     if (err_int != 0) return error.KeyNotFound;
     if (out_type != REG_SZ or size % 2 != 0) return error.Unsupported;
     const size_utf16 = size / 2;
-    if (out[size_utf16] != 0) return error.Unsupported;
+    out[size_utf16] = 0;
     for (0..size_utf16) |i| {
         if (out[i] == '/') out[i] = '\\';
     }
