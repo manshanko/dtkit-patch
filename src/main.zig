@@ -153,19 +153,22 @@ fn toggle_patch(allocator: std.mem.Allocator, db_path: OsStr, db_bak_path: OsStr
 }
 
 fn remove_patch(allocator: std.mem.Allocator, db_path: OsStr, db_bak_path: OsStr) !UnpatchResult {
-    const data = try os.read_file(allocator, db_path);
-    defer if (!leak_resources) allocator.free(data);
+    if (os.read_file(allocator, db_path)) |data| {
+        defer if (!leak_resources) allocator.free(data);
 
-    if (scan_database(data)) |_| {
-        return .NotPatched;
-    } else |e| {
-        if (e == error.AlreadyPatched) {
-            try restore_backup(db_path, db_bak_path);
-            return .RemovedPatch;
-        } else {
-            return e;
+        if (scan_database(data)) |_| {
+            return .NotPatched;
+        } else |err| {
+            if (err != error.AlreadyPatched) {
+                return err;
+            }
         }
+    } else |err| {
+        if (err != error.FileNotFound) return err;
     }
+
+    try restore_backup(db_path, db_bak_path);
+    return .RemovedPatch;
 }
 
 noinline fn write_chunk(file: *std.fs.File, chunk: []const u8) !void {
