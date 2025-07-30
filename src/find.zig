@@ -205,6 +205,7 @@ fn bad_utf8_to_utf16(utf8: []const u8, utf16: []u16) error{InvalidUtf8}!usize {
         } else if (utf8[offset] >= 0b11111000) {
             return error.InvalidUtf8;
         } else if (utf8[offset] >= 0b11110000) {
+            if (utf8.len < 4) return error.InvalidUtf8;
             const b0: u32 = utf8[offset    ] & 0b00000111;
             const b1: u32 = utf8[offset + 1] & 0b00111111;
             const b2: u32 = utf8[offset + 2] & 0b00111111;
@@ -219,6 +220,7 @@ fn bad_utf8_to_utf16(utf8: []const u8, utf16: []u16) error{InvalidUtf8}!usize {
             offset += 4;
             dest_offset += 2;
         } else if (utf8[offset] >= 0b11100000) {
+            if (utf8.len < 3) return error.InvalidUtf8;
             const b0: u16 = utf8[offset    ] & 0b00001111;
             const b1: u16 = utf8[offset + 1] & 0b00111111;
             const b2: u16 = utf8[offset + 2] & 0b00111111;
@@ -229,6 +231,7 @@ fn bad_utf8_to_utf16(utf8: []const u8, utf16: []u16) error{InvalidUtf8}!usize {
             offset += 3;
             dest_offset += 1;
         } else if (utf8[offset] >= 0b11000000) {
+            if (utf8.len < 2) return error.InvalidUtf8;
             const b0: u16 = utf8[offset    ] & 0b00011111;
             const b1: u16 = utf8[offset + 1] & 0b00111111;
             const cp = (b0 << 6) | b1;
