@@ -69,10 +69,10 @@ const Option = enum {
     };
 
     fn match(tag: OsStr) ?Self {
-        for (0..fields.len) |i| {
+        outer: for (0..fields.len) |i| {
             const key = lookup.keys[i];
             if (key.len == tag.len) {
-                for (0..key.len) |j| if (key[j] != tag[j]) continue;
+                for (0..key.len) |j| if (key[j] != tag[j]) continue :outer;
                 return lookup.values[i];
             }
         }
