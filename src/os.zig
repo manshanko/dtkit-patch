@@ -74,10 +74,13 @@ pub fn path_join(allocator: std.mem.Allocator, dir_os: OsStr, part: OsStr) error
         }
         mem.memcpy(buffer[offset..offset + part.len], part);
         offset += part.len;
+        buffer[offset] = 0;
         if (!root.leak_resources and offset != buffer.len) {
             const buffer2 = try allocator.dupeZ(u16, buffer[0..offset]);
             allocator.free(buffer);
             buffer = buffer2;
+        } else {
+            buffer = buffer[0..offset :0];
         }
         return buffer;
     } else {
