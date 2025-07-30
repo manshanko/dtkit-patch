@@ -26,6 +26,12 @@ const MOD_PATCH_STARTING_POINT = std.mem.asBytes(&@byteSwap(MOD_PATCH_STARTING_P
 
 const already_patched_msg = "\"" ++ BUNDLE_DATABASE ++ "\" is already patched";
 
+pub const std_options = std.Options{
+    .enable_segfault_handler = !leak_resources,
+};
+
+pub const panic = if (leak_resources) std.debug.no_panic else std.debug.FullPanic(std.debug.defaultPanic);
+
 pub fn main() u8 {
     const code: u8 = if (execute()) |msg| blk: {
         print(msg);
