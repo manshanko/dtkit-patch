@@ -41,6 +41,7 @@ pub fn path_join(allocator: std.mem.Allocator, dir_os: OsStr, part: OsStr) error
             null,
         );
         if (size_new <= 2) return error.BadPathName;
+
         var buffer = try allocator.allocSentinel(u16, 4 + (size_new / 2 - 1) + no_slash + part.len, 0);
         errdefer if (!root.leak_resources) allocator.free(buffer);
 
@@ -80,6 +81,7 @@ pub fn path_join(allocator: std.mem.Allocator, dir_os: OsStr, part: OsStr) error
             offset += 1;
         }
         mem.memcpy(buffer[offset..offset + part.len], part);
+        offset += part.len;
         return buffer;
     }
 }
@@ -108,7 +110,7 @@ pub fn fs_openFile(path: OsStr) !std.fs.File {
     }
 }
 
-pub fn read_file(allocator: std.mem.Allocator, path: OsStr) ![]u8 {
+pub fn read_file(allocator: std.mem.Allocator, path: OsStr) ![:0]u8 {
     const file = fs_openFile(path) catch |err| return switch (err) {
         error.FileNotFound => error.NotFoundDatabase,
         else => return err,
@@ -117,7 +119,7 @@ pub fn read_file(allocator: std.mem.Allocator, path: OsStr) ![]u8 {
     defer file.close();
 
     const size = try file.getEndPos();
-    const data = try allocator.alloc(u8, size);
+    const data = try allocator.allocSentinel(u8, size, 0);
     errdefer if (!root.leak_resources) allocator.free(data);
 
     _ = try file.readAll(data[0..size]);

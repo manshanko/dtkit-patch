@@ -142,14 +142,13 @@ pub fn find_darktide_gamepass(allocator: std.mem.Allocator) error{KeyNotFound, U
         const app_info_key = try open_key(windows.HKEY_LOCAL_MACHINE, &buffer);
         defer if (!root.leak_resources) { _ = windows.advapi32.RegCloseKey(app_info_key); };
 
-        const out_buffer = try allocator.alloc(u16, 2048);
+        const out_buffer = try allocator.allocSentinel(u16, 2047, 0);
         errdefer if (!root.leak_resources) allocator.free(out_buffer);
 
         const size = try key_get_value(app_info_key, installed_location, out_buffer);
-        var out = try allocator.alloc(u16, size + 1);
-        mem.memcpy(out[0..size], out_buffer[0..size]);
-        out[size] = 0;
-        return out[0..size :0];
+        const out = try allocator.allocSentinel(u16, size, 0);
+        mem.memcpy(out, out_buffer[0..size]);
+        return out;
     } else {
         @compileError("find_darktide_gamepass is only supported on windows");
     }
@@ -349,11 +348,13 @@ fn find_game_path(allocator: std.mem.Allocator, path_buffer: OsStrMut, len: usiz
 
                 var out = try allocator.allocSentinel(u16, utf16_size, 0);
                 mem.memcpy(out[0..utf16_size], path_buffer[0..utf16_size]);
-                return out;
+                return out[0..utf16_size :0];
             } else {
                 var out = try allocator.allocSentinel(u8, size + darktide_suffix.len, 0);
+                var offset: usize = size;
                 mem.memcpy(out[0..size], path_utf8);
-                out[size] = '/';
+                out[offset] = '/';
+                offset += 1;
                 mem.memcpy(out[size + 1..], darktide_suffix);
                 return out;
             }
@@ -364,7 +365,7 @@ fn find_game_path(allocator: std.mem.Allocator, path_buffer: OsStrMut, len: usiz
 
 pub fn find_darktide_steam(allocator: std.mem.Allocator) error{OutOfMemory, NotFoundDarktide}!OsStr {
     if (builtin.os.tag == .windows) {
-        var path_buffer = try allocator.alloc(u16, 2048);
+        var path_buffer = try allocator.allocSentinel(u16, 2047, 0);
         defer if (!root.leak_resources) allocator.free(path_buffer);
 
         path_buffer[0] = '\\';

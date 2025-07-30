@@ -26,7 +26,7 @@ pub const ArgIteratorWindows = struct {
     /// Encoded as WTF-16 LE.
     cmd_line: []const u16,
     index: usize = 0,
-    buffer: []u16,
+    buffer: [:0]u16,
     start: usize = 0,
     end: usize = 0,
 
@@ -44,8 +44,7 @@ pub const ArgIteratorWindows = struct {
         // - The first argument needs one extra byte of space allocated for its NUL
         //   terminator, but for each subsequent argument the necessary whitespace
         //   between arguments guarantees room for their NUL terminator(s).
-        const buffer = try allocator.alloc(u16, cmd_line_w.len + 1);
-        errdefer allocator.free(buffer);
+        const buffer = try allocator.allocSentinel(u16, cmd_line_w.len, 0);
 
         return .{
             .allocator = allocator,
