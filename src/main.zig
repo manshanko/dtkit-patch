@@ -176,7 +176,10 @@ noinline fn write_chunk(file: *std.fs.File, chunk: []const u8) !void {
 }
 
 fn apply_patch(allocator: std.mem.Allocator, db_path: OsStr, db_bak_path: OsStr) !PatchResult {
-    const data = try os.read_file(allocator, db_path);
+    const data = os.read_file(allocator, db_path) catch |e| return switch (e) {
+        error.FileNotFound => error.NotFoundDarktide,
+        else => e,
+    };
     defer if (!leak_resources) allocator.free(data);
 
     const offset = scan_database(data) catch |e| switch (e) {

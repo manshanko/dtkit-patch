@@ -193,7 +193,7 @@ fn parse_string(data: []const u8, out: []u8) ?u32 {
 }
 
 // Slower and smaller (~1.5KiB) UTF-8 parser than std.unicode.utf8ToUtf16Le
-fn bad_utf8_to_utf16(utf8: []const u8, utf16: []u16) !usize {
+fn bad_utf8_to_utf16(utf8: []const u8, utf16: []u16) error{InvalidUtf8}!usize {
     var offset: u32 = 0;
     var dest_offset: u32 = 0;
     while (offset < utf8.len) {
@@ -309,7 +309,7 @@ test bad_utf8_to_utf16 {
     }
 }
 
-fn find_game_path(allocator: std.mem.Allocator, path_buffer: OsStrMut, len: usize) !OsStr {
+fn find_game_path(allocator: std.mem.Allocator, path_buffer: OsStrMut, len: usize) error{OutOfMemory, InvalidUtf8, NotFoundDarktide}!OsStr {
     // Steam stores the game path in appmanifest_*.acf
     // We may need to handle that.
     const darktide_suffix = os.into_os_str(
@@ -322,7 +322,7 @@ fn find_game_path(allocator: std.mem.Allocator, path_buffer: OsStrMut, len: usiz
     const darktide_id = "\n\t\t\t\"1361210";
     const end_apps = "\n\t\t}";
 
-    const data = try os.read_file(allocator, path_buffer[0..len :0]);
+    const data = os.read_file(allocator, path_buffer[0..len :0]) catch return error.NotFoundDarktide;
     defer if (!root.leak_resources) allocator.free(data);
 
     var index: usize = 0;
@@ -363,7 +363,7 @@ fn find_game_path(allocator: std.mem.Allocator, path_buffer: OsStrMut, len: usiz
     return error.NotFoundDarktide;
 }
 
-pub fn find_darktide_steam(allocator: std.mem.Allocator) error{OutOfMemory, NotFoundDarktide}!OsStr {
+pub fn find_darktide_steam(allocator: std.mem.Allocator) error{OutOfMemory, InvalidUtf8, NotFoundDarktide}!OsStr {
     if (builtin.os.tag == .windows) {
         var path_buffer = try allocator.allocSentinel(u16, 2047, 0);
         defer if (!root.leak_resources) allocator.free(path_buffer);

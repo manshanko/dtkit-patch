@@ -86,7 +86,7 @@ pub fn path_join(allocator: std.mem.Allocator, dir_os: OsStr, part: OsStr) error
     }
 }
 
-pub fn fs_rename(old: OsStr, new: OsStr) !void {
+pub fn fs_rename(old: OsStr, new: OsStr) std.posix.RenameError!void {
     if (is_windows) {
         return std.posix.renameW(old, new);
     } else {
@@ -94,7 +94,7 @@ pub fn fs_rename(old: OsStr, new: OsStr) !void {
     }
 }
 
-pub fn fs_createFile(path: OsStr) !std.fs.File {
+pub fn fs_createFile(path: OsStr) std.fs.File.OpenError!std.fs.File {
     if (is_windows) {
         return std.fs.cwd().createFileW(path, .{});
     } else {
@@ -102,7 +102,7 @@ pub fn fs_createFile(path: OsStr) !std.fs.File {
     }
 }
 
-pub fn fs_openFile(path: OsStr) !std.fs.File {
+pub fn fs_openFile(path: OsStr) std.fs.File.OpenError!std.fs.File {
     if (is_windows) {
         return std.fs.cwd().openFileW(path, .{});
     } else {
@@ -110,11 +110,13 @@ pub fn fs_openFile(path: OsStr) !std.fs.File {
     }
 }
 
-pub fn read_file(allocator: std.mem.Allocator, path: OsStr) ![:0]u8 {
-    const file = fs_openFile(path) catch |err| return switch (err) {
-        error.FileNotFound => error.NotFoundDatabase,
-        else => return err,
-    };
+pub const ReadFileError = error{OutOfMemory}
+    || std.fs.File.GetSeekPosError
+    || std.fs.File.OpenError
+    || std.posix.ReadError;
+
+pub fn read_file(allocator: std.mem.Allocator, path: OsStr) ReadFileError![:0]u8 {
+    const file = try fs_openFile(path);
     // Must close file to rename without unlinking.
     defer file.close();
 
