@@ -31,7 +31,7 @@ pub fn main() u8 {
         print(msg);
         break :blk 0;
     } else |err| blk: {
-        const err_msg = err_msg: switch (err) {
+        const err_msg = switch (err) {
             error.AlreadyPatched => already_patched_msg,
             error.UnsupportedDatabase => "found unsupported changes in \"" ++ BUNDLE_DATABASE ++ "\"",
             error.BadFormat => "unknown format used in \"" ++ BUNDLE_DATABASE ++ "\"",
@@ -40,12 +40,10 @@ pub fn main() u8 {
             error.NotFoundBackup => "failed to find \"" ++ BUNDLE_DATABASE_BAK ++ "\"",
             error.NotFoundDarktide => "failed to find Darktide installation directory",
             error.BadPathName => "directory is an invalid path",
-            else => {
-                if (builtin.mode != .ReleaseSmall) {
-                    std.debug.print("{}\n", .{err});
-                }
-                break :err_msg "unexpected error";
-            }
+            error.InvalidUtf8 => "invalid UTF-8",
+            error.AccessDenied,
+            error.PermissionDenied => "access denied",
+            else => if (builtin.mode != .ReleaseSmall) @errorName(err) else "unexpected error",
         };
         error_print(err_msg);
         if (os.console_will_close()) _ = os.display_message(err_msg, .NotifyError);
