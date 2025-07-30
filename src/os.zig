@@ -30,6 +30,9 @@ pub fn into_os_str(comptime str: [:0]const u8) OsStr {
 
 pub fn path_join(allocator: std.mem.Allocator, dir_os: OsStr, part: OsStr) error{OutOfMemory, BadPathName}!OsStr {
     if (is_windows) {
+        const last = dir_os[dir_os.len - 1];
+        const no_slash: u32 = if (last == '\\' or last == '/') 0 else 1;
+
         var tmp: [0]u16 = undefined;
         const size_new = windows.ntdll.RtlGetFullPathName_U(
             dir_os,
@@ -38,7 +41,7 @@ pub fn path_join(allocator: std.mem.Allocator, dir_os: OsStr, part: OsStr) error
             null,
         );
         if (size_new <= 2) return error.BadPathName;
-        var buffer = try allocator.allocSentinel(u16, 4 + (size_new / 2 - 1) + 1 + part.len, 0);
+        var buffer = try allocator.allocSentinel(u16, 4 + (size_new / 2 - 1) + no_slash + part.len, 0);
         errdefer if (!root.leak_resources) allocator.free(buffer);
 
         const size = windows.ntdll.RtlGetFullPathName_U(
@@ -55,8 +58,10 @@ pub fn path_join(allocator: std.mem.Allocator, dir_os: OsStr, part: OsStr) error
         buffer[3] = '\\';
 
         var offset: usize = 4 + size / 2;
-        buffer[offset] = '\\';
-        offset += 1;
+        if (no_slash == 1) {
+            buffer[offset] = '\\';
+            offset += 1;
+        }
         mem.memcpy(buffer[offset..offset + part.len], part);
         offset += part.len;
         buffer[offset] = 0;
