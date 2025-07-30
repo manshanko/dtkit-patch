@@ -120,7 +120,7 @@ pub fn find_darktide_gamepass(allocator: std.mem.Allocator) error{KeyNotFound, U
 
         var buffer: [2048:0]u8 = [_:0]u8{0} ** 2048;
         var offset = registry_package_full_name.len;
-        mem.memcpy(buffer[0..offset], registry_package_full_name);
+        @memcpy(buffer[0..offset], registry_package_full_name);
         buffer[offset] = '\\';
         offset += 1;
         const app_name = buffer[offset..];
@@ -130,7 +130,7 @@ pub fn find_darktide_gamepass(allocator: std.mem.Allocator) error{KeyNotFound, U
         defer if (!root.leak_resources) { _ = windows.advapi32.RegCloseKey(indexes_key); };
 
         offset = registry_package_index.len;
-        mem.memcpy(buffer[0..offset], registry_package_index);
+        @memcpy(buffer[0..offset], registry_package_index);
         buffer[offset] = '\\';
         offset += 1;
         const index = buffer[offset..];
@@ -144,7 +144,7 @@ pub fn find_darktide_gamepass(allocator: std.mem.Allocator) error{KeyNotFound, U
 
         const size = try key_get_value(app_info_key, installed_location, out_buffer);
         const out = try allocator.allocSentinel(u16, size, 0);
-        mem.memcpy(out, out_buffer[0..size]);
+        @memcpy(out, out_buffer[0..size]);
         return out;
     } else {
         @compileError("find_darktide_gamepass is only supported on windows");
@@ -343,19 +343,19 @@ fn find_game_path(allocator: std.mem.Allocator, path_buffer: OsStrMut, len: usiz
                 var utf16_size: usize = try bad_utf8_to_utf16(path_utf8, path_buffer);
                 path_buffer[utf16_size] = '\\';
                 utf16_size += 1;
-                mem.memcpy(path_buffer[utf16_size..utf16_size + darktide_suffix.len], darktide_suffix);
+                @memcpy(path_buffer[utf16_size..utf16_size + darktide_suffix.len], darktide_suffix);
                 utf16_size += darktide_suffix.len;
 
                 var out = try allocator.allocSentinel(u16, utf16_size, 0);
-                mem.memcpy(out[0..utf16_size], path_buffer[0..utf16_size]);
+                @memcpy(out[0..utf16_size], path_buffer[0..utf16_size]);
                 return out[0..utf16_size :0];
             } else {
                 var out = try allocator.allocSentinel(u8, size + darktide_suffix.len, 0);
                 var offset: usize = size;
-                mem.memcpy(out[0..size], path_utf8);
+                @memcpy(out[0..size], path_utf8);
                 out[offset] = '/';
                 offset += 1;
-                mem.memcpy(out[size + 1..], darktide_suffix);
+                @memcpy(out[size + 1..], darktide_suffix);
                 return out;
             }
         }
@@ -371,7 +371,7 @@ pub fn find_darktide_steam(allocator: std.mem.Allocator) error{OutOfMemory, Inva
         const size = steam_dir_reg(path_buffer[0.. :0]) catch return error.NotFoundDarktide;
         const path_vdf = try os.path_join(allocator, path_buffer[0..size :0], library_vdf);
         defer if (!root.leak_resources) allocator.free(path_vdf);
-        mem.memcpy(path_buffer[0..path_vdf.len], path_vdf);
+        @memcpy(path_buffer[0..path_vdf.len], path_vdf);
         path_buffer[path_vdf.len] = 0;
 
         return find_game_path(allocator, path_buffer[0.. :0], path_vdf.len)
@@ -383,14 +383,14 @@ pub fn find_darktide_steam(allocator: std.mem.Allocator) error{OutOfMemory, Inva
         var path_buffer: [2048:0]u8 = [_:0]u8{0} ** 2048;
 
         const home = std.posix.getenv("HOME") orelse return error.NotFoundDarktide;
-        mem.memcpy(path_buffer[0..home.len], home);
+        @memcpy(path_buffer[0..home.len], home);
         var offset: usize = home.len;
         if (path_buffer[offset] != '/') {
             path_buffer[offset] = '/';
             offset += 1;
         }
         const append = ".steam/steam/" ++ library_vdf;
-        mem.memcpy(path_buffer[offset..offset + append.len], append);
+        @memcpy(path_buffer[offset..offset + append.len], append);
         offset += append.len;
         path_buffer[offset] = 0;
 

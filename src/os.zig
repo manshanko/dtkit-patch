@@ -4,7 +4,6 @@ const windows = std.os.windows;
 
 const root = @import("root");
 const process = @import("zig-std/process.zig");
-const mem = @import("mem.zig");
 
 const is_windows = builtin.os.tag == .windows;
 
@@ -72,7 +71,7 @@ pub fn path_join(allocator: std.mem.Allocator, dir_os: OsStr, part: OsStr) error
             buffer[offset] = '\\';
             offset += 1;
         }
-        mem.memcpy(buffer[offset..offset + part.len], part);
+        @memcpy(buffer[offset..offset + part.len], part);
         offset += part.len;
         buffer[offset] = 0;
         if (!root.leak_resources and offset != buffer.len) {
@@ -85,14 +84,14 @@ pub fn path_join(allocator: std.mem.Allocator, dir_os: OsStr, part: OsStr) error
         return buffer;
     } else {
         const buffer = try allocator.allocSentinel(u8, dir_os.len + 1 + part.len, 0);
-        mem.memcpy(buffer[0..dir_os.len], dir_os);
+        @memcpy(buffer[0..dir_os.len], dir_os);
 
         var offset: usize = dir_os.len;
         if (buffer[offset] != '/') {
             buffer[offset] = '/';
             offset += 1;
         }
-        mem.memcpy(buffer[offset..offset + part.len], part);
+        @memcpy(buffer[offset..offset + part.len], part);
         offset += part.len;
         return buffer;
     }
