@@ -110,9 +110,6 @@ fn key_get_value(key: windows.HKEY, name: [:0]const u16, out: []u16) error{KeyNo
     if (out_type != REG_SZ or size % 2 != 0) return error.Unsupported;
     const size_utf16 = size / 2;
     out[size_utf16] = 0;
-    for (0..size_utf16) |i| {
-        if (out[i] == '/') out[i] = '\\';
-    }
     return size_utf16 - 1;
 }
 
@@ -366,25 +363,18 @@ fn find_game_path(allocator: std.mem.Allocator, path_buffer: OsStrMut, len: usiz
     return error.NotFoundDarktide;
 }
 
-pub fn find_darktide_steam(allocator: std.mem.Allocator) error{OutOfMemory, InvalidUtf8, NotFoundDarktide}!OsStr {
+pub fn find_darktide_steam(allocator: std.mem.Allocator) error{OutOfMemory, InvalidUtf8, BadPathName, NotFoundDarktide}!OsStr {
     if (builtin.os.tag == .windows) {
         var path_buffer = try allocator.allocSentinel(u16, 2047, 0);
         defer if (!root.leak_resources) allocator.free(path_buffer);
 
-        path_buffer[0] = '\\';
-        path_buffer[1] = '?';
-        path_buffer[2] = '?';
-        path_buffer[3] = '\\';
-        var offset: u32 = 4;
-        offset += steam_dir_reg(path_buffer[offset..path_buffer.len - 1]) catch return error.NotFoundDarktide;
-        path_buffer[offset] = '\\';
-        offset += 1;
-        mem.memcpy(path_buffer[offset..offset + library_vdf.len], library_vdf);
-        offset += library_vdf.len;
-        path_buffer[offset] = 0;
-        path_buffer[path_buffer.len - 1] = 0;
+        const size = steam_dir_reg(path_buffer[0.. :0]) catch return error.NotFoundDarktide;
+        const path_vdf = try os.path_join(allocator, path_buffer[0..size :0], library_vdf);
+        defer if (!root.leak_resources) allocator.free(path_vdf);
+        mem.memcpy(path_buffer[0..path_vdf.len], path_vdf);
+        path_buffer[path_vdf.len] = 0;
 
-        return find_game_path(allocator, path_buffer[0..path_buffer.len - 1 :0], offset)
+        return find_game_path(allocator, path_buffer[0.. :0], path_vdf.len)
             catch |e| return switch (e) {
                 error.OutOfMemory => error.OutOfMemory,
                 else => error.NotFoundDarktide,
