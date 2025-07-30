@@ -93,7 +93,6 @@ pub const PatchOptions = struct {
 
     pub fn init(args: *os.ArgIterator) Self {
         var num_args: u16 = 0;
-        var num_opts: u16 = 0;
         var help = false;
         var interactive = false;
         var patch = false;
@@ -102,9 +101,7 @@ pub const PatchOptions = struct {
         var path: ?OsStr = null;
 
         while (args.next()) |arg| {
-            num_args += 1;
             if (Option.match(arg)) |opt| {
-                num_opts += 1;
                 switch (opt) {
                     .h, .help => help = true,
                     .interactive => interactive = true,
@@ -112,12 +109,13 @@ pub const PatchOptions = struct {
                     .unpatch => unpatch = true,
                     .toggle => toggle = true,
                 }
-            } else if (path == null) {
+            } else if (path == null and arg[0] != '-') {
                 path = arg;
             } else {
                 // TODO: log unknown option
                 continue;
             }
+            num_args += 1;
         }
 
         return .{
