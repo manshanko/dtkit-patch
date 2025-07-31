@@ -177,8 +177,9 @@ fn parse_string(data: []const u8, out: []u8) ?u32 {
 
     var read: u32 = 1;
     var wrote: u32 = 0;
-    while (read < data.len) {
+    while (read < data.len and wrote < out.len) {
         if (data[read] == '\\') {
+            if (read + 1 >= data.len) return null;
             read += 1;
             out[wrote] = switch (data[read]) {
                 '"', 'r', 'n', '\\' => data[read],
@@ -194,8 +195,7 @@ fn parse_string(data: []const u8, out: []u8) ?u32 {
         read += 1;
     }
 
-    if (wrote > 0) return wrote
-    else return null;
+    return wrote;
 }
 
 fn find_game_path(allocator: std.mem.Allocator, path_buffer: OsStrMut, len: usize) error{OutOfMemory, InvalidUtf8, NotFoundDarktide}!OsStr {
