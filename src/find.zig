@@ -29,11 +29,10 @@ const steam_local_machine =
 ;
 const steam_path = os.into_os_str("SteamPath");
 const install_path = os.into_os_str("InstallPath");
-const library_vdf = if (builtin.os.tag == .windows) path: {
-    break :path os.into_os_str("steamapps\\libraryfolders.vdf");
-} else path: {
-    break :path "steamapps/libraryfolders.vdf";
-};
+const library_vdf = if (builtin.os.tag == .windows)
+    os.into_os_str("steamapps\\libraryfolders.vdf")
+else
+    "steamapps/libraryfolders.vdf";
 
 pub fn find_darktide_gamepass(allocator: std.mem.Allocator) error{KeyNotFound, Unsupported, OutOfMemory}![:0]u16 {
     if (builtin.os.tag == .windows) {

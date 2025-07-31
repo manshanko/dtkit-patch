@@ -35,12 +35,11 @@ fn map(n: usize, alignment: std.mem.Alignment) ?[*]u8 {
             windows.PAGE_READWRITE,
         );
 
-        if (status == SUCCESS and std.mem.isAligned(@intFromPtr(base_addr), alignment_bytes)) {
-            return @ptrCast(base_addr);
-        } else {
+        return if (status == SUCCESS and std.mem.isAligned(@intFromPtr(base_addr), alignment_bytes))
+            @ptrCast(base_addr)
+        else
             // TODO: assert on debug
-            return null;
-        }
+            null;
     } else {
         const slice = std.posix.mmap(
             null,
@@ -51,11 +50,10 @@ fn map(n: usize, alignment: std.mem.Alignment) ?[*]u8 {
             0,
         ) catch return null;
 
-        if (std.mem.isAligned(@intFromPtr(slice.ptr), alignment_bytes)) {
-            return slice.ptr;
-        } else {
-            return null;
-        }
+        return if (std.mem.isAligned(@intFromPtr(slice.ptr), alignment_bytes))
+            slice.ptr
+        else
+            null;
     }
 }
 

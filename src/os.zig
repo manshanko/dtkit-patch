@@ -7,33 +7,28 @@ const process = @import("zig-std/process.zig");
 
 const is_windows = builtin.os.tag == .windows;
 
-pub const OsStr = if (is_windows) res: {
-    break :res [:0]const u16;
-} else res: {
-    break :res [:0]const u8;
-};
+pub const OsStr = if (is_windows)
+    [:0]const u16
+else
+    [:0]const u8;
 
-pub const OsStrMut = if (is_windows) res: {
-    break :res [:0]u16;
-} else res: {
-    break :res [:0]u8;
-};
+pub const OsStrMut = if (is_windows)
+    [:0]u16
+else
+    [:0]u8;
 
 pub fn into_os_str(comptime str: [:0]const u8) OsStr {
-    if (is_windows) {
-        return std.unicode.utf8ToUtf16LeStringLiteral(str);
-    } else {
-        return str;
-    }
+    return if (is_windows)
+        std.unicode.utf8ToUtf16LeStringLiteral(str)
+    else
+        str;
 }
 
 pub fn stderr() std.fs.File {
-    if (@hasDecl(std.fs.File, "stderr")) {
-        // zig > 0.14.1
-        return std.fs.File.stderr();
-    } else {
-        return std.io.getStdErr();
-    }
+    return if (@hasDecl(std.fs.File, "stderr"))
+        std.fs.File.stderr()
+    else
+        std.io.getStdErr();
 }
 
 pub fn path_join(allocator: std.mem.Allocator, dir_os: OsStr, part: OsStr) error{OutOfMemory, BadPathName}!OsStr {
@@ -98,27 +93,24 @@ pub fn path_join(allocator: std.mem.Allocator, dir_os: OsStr, part: OsStr) error
 }
 
 pub fn fs_rename(old: OsStr, new: OsStr) std.posix.RenameError!void {
-    if (is_windows) {
-        return std.posix.renameW(old, new);
-    } else {
-        return std.posix.renameZ(old, new);
-    }
+    return if (is_windows)
+        std.posix.renameW(old, new)
+    else
+        std.posix.renameZ(old, new);
 }
 
 pub fn fs_createFile(path: OsStr) std.fs.File.OpenError!std.fs.File {
-    if (is_windows) {
-        return std.fs.cwd().createFileW(path, .{});
-    } else {
+    return if (is_windows)
+        std.fs.cwd().createFileW(path, .{})
+    else
         return std.fs.cwd().createFileZ(path, .{});
-    }
 }
 
 pub fn fs_openFile(path: OsStr) std.fs.File.OpenError!std.fs.File {
-    if (is_windows) {
-        return std.fs.cwd().openFileW(path, .{});
-    } else {
-        return std.fs.cwd().openFileZ(path, .{});
-    }
+    return if (is_windows)
+        std.fs.cwd().openFileW(path, .{})
+    else
+        std.fs.cwd().openFileZ(path, .{});
 }
 
 pub const ReadFileError = error{OutOfMemory}
@@ -221,11 +213,10 @@ pub fn display_message(msg: [:0]const u8, msg_type: MessageType) bool {
             mode,
         );
 
-        if (msg_type == .Prompt) {
-            return result == IDYES;
-        } else {
-            return result == IDOK;
-        }
+        return if (msg_type == .Prompt)
+            result == IDYES
+        else
+            result == IDOK;
     }
     return false;
 }
