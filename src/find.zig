@@ -26,7 +26,7 @@ const steam_current_user =
     \\SOFTWARE\Valve\Steam
 ;
 const steam_local_machine =
-    \\SOFTWARE\\WOW6432Node\\Valve\\Steam
+    \\SOFTWARE\WOW6432Node\Valve\Steam
 ;
 const steam_path = os.into_os_str("SteamPath");
 const install_path = os.into_os_str("InstallPath");
