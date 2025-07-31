@@ -27,6 +27,7 @@ const already_patched_msg = "\"" ++ BUNDLE_DATABASE ++ "\" is already patched";
 
 pub const std_options = std.Options{
     .enable_segfault_handler = !leak_resources,
+    .keep_sigpipe = leak_resources,
 };
 
 pub const panic = if (leak_resources) std.debug.no_panic else std.debug.FullPanic(std.debug.defaultPanic);
