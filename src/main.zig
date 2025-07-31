@@ -247,5 +247,5 @@ fn error_print(text: []const u8) void {
 
 test {
     _ = @import("zig-std/process.zig");
-    _ = @import("find.zig");
+    _ = @import("unicode.zig");
 }
