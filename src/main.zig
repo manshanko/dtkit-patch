@@ -70,6 +70,8 @@ fn execute() ![]const u8 {
     const options = cli.PatchOptions.init(&args);
     if (options.help or (options.num_args == 0 and !os.console_will_close())) {
         return cli.help_msg();
+    } else if (options.env) {
+        return cli.env_msg();
     }
 
     const dir = if (options.path) |path| dir: {

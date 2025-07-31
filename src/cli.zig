@@ -1,5 +1,7 @@
+const builtin = @import("builtin");
 const std = @import("std");
 
+const config = @import("config");
 const os = @import("os.zig");
 const OsStr = os.OsStr;
 
@@ -12,7 +14,7 @@ fn into_opt(comptime key: [:0]const u8) OsStr {
     return os.into_os_str(prefix ++ key);
 }
 
-pub fn help_msg() []const u8 {
+pub fn help_msg() [:0]const u8 {
     return
         \\dtkit-patch 0.0.0 (smaller than ever!)
         \\https://github.com/manshanko/dtkit-patch
@@ -26,10 +28,22 @@ pub fn help_msg() []const u8 {
         \\dtkit-patch [OPTION] [DIR]
         \\
         \\OPTIONS:
+        \\  --env             Print version.
         \\  --patch           Patch bundle database.
         \\  --unpatch         Unpatch bundle database.
         \\  --toggle          Toggle patch/unpatch on bundle database.
         \\  --interactive     Always open prompt (Windows only).
+    ;
+}
+
+pub fn env_msg() [:0]const u8 {
+    const version = if (@hasDecl(config, "version") and config.version != null)
+        " (" ++ config.version.? ++ ")"
+    else
+        "";
+
+    return "dtkit-patch" ++ version ++ "\n"
+        ++ "  built with Zig (" ++ builtin.zig_version_string ++ ")"
     ;
 }
 
@@ -38,6 +52,7 @@ const Option = enum {
     const Self = @This();
 
     h, help,
+    env,
     interactive,
     patch,
     toggle,
@@ -51,17 +66,9 @@ const Option = enum {
     const lookup: Lookup = res: {
         var keys: [fields.len]OsStr = undefined;
         var values: [fields.len]Self = undefined;
-        var prev: ?[:0]const u8 = null;
         for (0..fields.len, fields) |i, field| {
             keys[i] = into_opt(field.name);
             values[i] = @enumFromInt(field.value);
-
-            if (prev) |lt| {
-                if (!std.mem.order(u8, lt, field.name).compare(std.math.CompareOperator.lt)) {
-                    @compileError(lt ++ " is greater than " ++ field.name);
-                }
-            }
-            prev = field.name;
         }
 
         break :res .{ .keys = keys, .values = values };
@@ -84,6 +91,7 @@ pub const PatchOptions = struct {
 
     num_args: u16,
     help: bool,
+    env: bool,
     interactive: bool,
     patch: bool,
     unpatch: bool,
@@ -93,6 +101,7 @@ pub const PatchOptions = struct {
     pub fn init(args: *os.ArgIterator) Self {
         var num_args: u16 = 0;
         var help = false;
+        var env = false;
         var interactive = false;
         var patch = false;
         var unpatch = false;
@@ -103,6 +112,7 @@ pub const PatchOptions = struct {
             if (Option.match(arg)) |opt| {
                 switch (opt) {
                     .h, .help => help = true,
+                    .env => env = true,
                     .interactive => interactive = true,
                     .patch => patch = true,
                     .unpatch => unpatch = true,
@@ -120,6 +130,7 @@ pub const PatchOptions = struct {
         return .{
             .num_args = num_args,
             .help = help,
+            .env = env,
             .interactive = interactive,
             .patch = patch,
             .unpatch = unpatch,

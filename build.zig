@@ -25,6 +25,11 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
+    const version = b.option([]const u8, "version", "semvar version string");
+    const options = b.addOptions();
+    options.addOption(?[]const u8, "version", version);
+    exe.root_module.addOptions("config", options);
+
     if (target.result.os.tag == .windows) {
         exe.linkSystemLibrary("user32");
         exe.linkSystemLibrary("advapi32");
