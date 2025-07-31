@@ -43,7 +43,6 @@ const Option = enum {
     toggle,
     unpatch,
 
-    const pointee = @typeInfo(OsStr).pointer.child;
     const fields = @typeInfo(Self).@"enum".fields;
     const Lookup = struct {
         keys: [fields.len]OsStr,
