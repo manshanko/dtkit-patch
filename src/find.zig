@@ -79,6 +79,12 @@ fn open_key(key: windows.HKEY, path: [:0]const u8) error{KeyNotFound}!windows.HK
     return out_key;
 }
 
+fn close_key(key: windows.HKEY) void {
+    if (!root.leak_resources) {
+        _ = windows.advapi32.RegCloseKey(key);
+    }
+}
+
 fn key_first_enum(key: windows.HKEY, out: [:0]u8) error{KeyNotFound}!u32 {
     var size: windows.DWORD = @intCast(out.len);
     const err_int = RegEnumKeyExA(
@@ -117,7 +123,7 @@ fn key_get_value(key: windows.HKEY, name: [:0]const u16, out: []u16) error{KeyNo
 pub fn find_darktide_gamepass(allocator: std.mem.Allocator) error{KeyNotFound, Unsupported, OutOfMemory}![:0]u16 {
     if (builtin.os.tag == .windows) {
         const apps_key = try open_key(windows.HKEY_CLASSES_ROOT, darktide_class_path);
-        defer if (!root.leak_resources) { _ = windows.advapi32.RegCloseKey(apps_key); };
+        defer close_key(apps_key);
 
         var buffer: [2048:0]u8 = [_:0]u8{0} ** 2048;
         var offset = registry_package_full_name.len;
@@ -128,7 +134,7 @@ pub fn find_darktide_gamepass(allocator: std.mem.Allocator) error{KeyNotFound, U
         _ = try key_first_enum(apps_key, app_name);
 
         const indexes_key = try open_key(windows.HKEY_LOCAL_MACHINE, &buffer);
-        defer if (!root.leak_resources) { _ = windows.advapi32.RegCloseKey(indexes_key); };
+        defer close_key(indexes_key);
 
         offset = registry_package_index.len;
         @memcpy(buffer[0..offset], registry_package_index);
@@ -138,7 +144,7 @@ pub fn find_darktide_gamepass(allocator: std.mem.Allocator) error{KeyNotFound, U
         _ = try key_first_enum(indexes_key, index);
 
         const app_info_key = try open_key(windows.HKEY_LOCAL_MACHINE, &buffer);
-        defer if (!root.leak_resources) { _ = windows.advapi32.RegCloseKey(app_info_key); };
+        defer close_key(app_info_key);
 
         const out_buffer = try allocator.allocSentinel(u16, 2047, 0);
         errdefer if (!root.leak_resources) allocator.free(out_buffer);
@@ -154,10 +160,12 @@ pub fn find_darktide_gamepass(allocator: std.mem.Allocator) error{KeyNotFound, U
 
 fn steam_dir_reg(out: []u16) error{KeyNotFound, Unsupported}!u32 {
     if (open_key(windows.HKEY_CURRENT_USER, steam_current_user)) |key| open: {
+        defer close_key(key);
         return key_get_value(key, steam_path, out) catch break :open;
     } else |_| {}
 
     if (open_key(windows.HKEY_LOCAL_MACHINE, steam_local_machine)) |key| open: {
+        defer close_key(key);
         return key_get_value(key, install_path, out) catch break :open;
     } else |_| {}
 
