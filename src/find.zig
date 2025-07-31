@@ -350,12 +350,12 @@ fn find_game_path(allocator: std.mem.Allocator, path_buffer: OsStrMut, len: usiz
                 @memcpy(out[0..utf16_size], path_buffer[0..utf16_size]);
                 return out[0..utf16_size :0];
             } else {
-                var out = try allocator.allocSentinel(u8, size + darktide_suffix.len, 0);
+                var out = try allocator.allocSentinel(u8, size + 1 + darktide_suffix.len, 0);
                 var offset: usize = size;
                 @memcpy(out[0..size], path_utf8);
                 out[offset] = '/';
                 offset += 1;
-                @memcpy(out[size + 1..], darktide_suffix);
+                @memcpy(out[offset..], darktide_suffix);
                 return out;
             }
         }
