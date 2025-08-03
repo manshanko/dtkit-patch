@@ -86,7 +86,7 @@ fn steam_dir_reg(out: []u16) error{KeyNotFound, Unsupported}!u32 {
     return error.KeyNotFound;
 }
 
-fn parse_string(data: []const u8, out: []u8) ?u32 {
+fn parse_path(data: []const u8, out: []u8) ?u32 {
     if (data[0] != '"') return null;
 
     var read: u32 = 1;
@@ -96,7 +96,7 @@ fn parse_string(data: []const u8, out: []u8) ?u32 {
             if (read + 1 >= data.len) return null;
             read += 1;
             out[wrote] = switch (data[read]) {
-                '"', 'r', 'n', '\\' => data[read],
+                '\\' => data[read],
                 else => return null,
             };
         } else if (data[read] == '"') {
@@ -135,7 +135,7 @@ fn find_game_path(allocator: std.mem.Allocator, path_buffer: OsStrMut, len: usiz
             orelse return error.NotFoundDarktide;
         index += vdf_path.len;
         while (data[index] != '"') index += 1;
-        const size = parse_string(data[index..], &buffer) orelse return error.NotFoundDarktide;
+        const size = parse_path(data[index..], &buffer) orelse return error.NotFoundDarktide;
         const path_utf8 = buffer[0..size];
 
         const end = mem.index_of_pos(data, index, end_apps)
