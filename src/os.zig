@@ -190,9 +190,16 @@ const ArgIteratorWindows = struct {
 
     fn next(self: *Self) ?[:0]const u16 {
         if (self.index >= self.argv.len) return null;
-        const i = self.index;
+        const arg = self.argv[self.index];
         self.index += 1;
-        return std.mem.span(self.argv[i]);
+
+        // std.mem.indexOfSentinel's faster implementation has more size overhead.
+        var i: usize = 0;
+        while (arg[i] != 0) {
+            i += 1;
+        }
+        if (i == 0) return null;
+        return arg[0..i :0];
     }
 };
 
