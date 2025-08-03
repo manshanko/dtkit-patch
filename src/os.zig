@@ -100,9 +100,17 @@ pub fn fs_rename(old: OsStr, new: OsStr) std.posix.RenameError!void {
 
 pub fn fs_createFile(path: OsStr) std.fs.File.OpenError!std.fs.File {
     return if (is_windows)
-        std.fs.cwd().createFileW(path, .{})
+        // inline to avoid overhead from dead branch handling NtLockFile
+        std.fs.File{
+            .handle = try windows.OpenFile(path, .{
+                .dir = std.fs.cwd().fd,
+                .access_mask = windows.SYNCHRONIZE | windows.GENERIC_WRITE,
+                .creation = windows.FILE_OPEN_IF,
+                .share_access = windows.FILE_SHARE_READ | windows.FILE_SHARE_WRITE | windows.FILE_SHARE_DELETE,
+            }),
+        }
     else
-        return std.fs.cwd().createFileZ(path, .{});
+        std.fs.cwd().createFileZ(path, .{});
 }
 
 pub fn fs_openFile(path: OsStr) std.fs.File.OpenError!std.fs.File {
