@@ -143,7 +143,7 @@ fn find_game_path(allocator: std.mem.Allocator, path_buffer: OsStrMut, len: usiz
 
         if (mem.index_of_pos(data[index..end], 0, darktide_id)) |_| {
             if (builtin.os.tag == .windows) {
-                var utf16_size: usize = try unicode.bad_utf8_to_utf16(path_utf8, path_buffer);
+                var utf16_size: usize = try unicode.utf8_to_utf16(path_utf8, path_buffer);
                 path_buffer[utf16_size] = '\\';
                 utf16_size += 1;
                 @memcpy(path_buffer[utf16_size..utf16_size + darktide_suffix.len], darktide_suffix);

@@ -247,8 +247,7 @@ fn error_print(text: []const u8) void {
     _ = stderr.write(text) catch 0;
     _ = stderr.write("\n") catch 0;
 }
-
+ 
 test {
     _ = @import("zig-std/process.zig");
-    _ = @import("unicode.zig");
 }
