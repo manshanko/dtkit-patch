@@ -169,7 +169,7 @@ fn remove_patch(allocator: std.mem.Allocator, db_path: OsStr, db_bak_path: OsStr
 
 fn apply_patch(allocator: std.mem.Allocator, db_path: OsStr, db_bak_path: OsStr) !PatchResult {
     const data = os.read_file(allocator, db_path) catch |e| return switch (e) {
-        error.FileNotFound => error.NotFoundDarktide,
+        error.FileNotFound => error.NotFoundDatabase,
         else => e,
     };
     defer if (!leak_resources) allocator.free(data);
