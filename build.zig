@@ -12,7 +12,7 @@ pub fn build(b: *std.Build) void {
     );
 
     const strip = b.option(bool, "strip", "strip debug information");
-    const unwind_tables: ?std.builtin.UnwindTables = if (optimize == .ReleaseSmall) .none else null;
+    const unwind_tables: ?std.builtin.UnwindTables = if (optimize != .Debug) .none else null;
     const exe = b.addExecutable(.{
         .name = "dtkit-patch",
         .root_module = b.createModule(.{
