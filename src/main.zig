@@ -9,11 +9,14 @@ const find = @import("find.zig");
 const os = @import("os.zig");
 const OsStr = os.OsStr;
 
+const patcher_error = @import("error.zig");
+const PatcherError = patcher_error.PatcherError;
+
 pub const leak_resources = builtin.mode != .Debug;
 
-const BUNDLE_DATABASE = "bundle_database.data";
+pub const BUNDLE_DATABASE = "bundle_database.data";
+pub const BUNDLE_DATABASE_BAK = "bundle_database.data.bak";
 const BUNDLE_DATABASE_OS = os.into_os_str(BUNDLE_DATABASE);
-const BUNDLE_DATABASE_BAK = "bundle_database.data.bak";
 const BUNDLE_DATABASE_BAK_OS = os.into_os_str(BUNDLE_DATABASE_BAK);
 
 const BOOT_BUNDLE_NEXT_PATCH = "9ba626afa44a3aa3.patch_001";
@@ -37,20 +40,7 @@ pub fn main() u8 {
         print(msg);
         break :blk 0;
     } else |err| blk: {
-        const err_msg = switch (err) {
-            error.AlreadyPatched => already_patched_msg,
-            error.UnsupportedDatabase => "found unsupported changes in \"" ++ BUNDLE_DATABASE ++ "\"",
-            error.BadFormat => "unknown format used in \"" ++ BUNDLE_DATABASE ++ "\"",
-            error.OutOfMemory => "out of memory",
-            error.NotFoundDatabase => "failed to find \"" ++ BUNDLE_DATABASE ++ "\"",
-            error.NotFoundBackup => "failed to find \"" ++ BUNDLE_DATABASE_BAK ++ "\"",
-            error.NotFoundDarktide => "failed to find Darktide installation directory",
-            error.BadPathName => "directory is an invalid path",
-            error.InvalidUtf8 => "invalid UTF-8",
-            error.AccessDenied,
-            error.PermissionDenied => "access denied",
-            else => if (builtin.mode != .ReleaseSmall) @errorName(err) else "unexpected error",
-        };
+        const err_msg = patcher_error.lookup(err);
         error_print(err_msg);
         if (os.console_will_close()) _ = os.display_message(err_msg, .NotifyError);
         break :blk 1;
@@ -59,7 +49,7 @@ pub fn main() u8 {
     return code;
 }
 
-fn execute() ![]const u8 {
+fn execute() PatcherError![]const u8 {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer if (!leak_resources) std.debug.assert(gpa.deinit() == .ok);
     const allocator = if (leak_resources) alloc.leaky_allocator else gpa.allocator();
@@ -99,7 +89,7 @@ fn execute() ![]const u8 {
     if (options.patch) {
         const result = try apply_patch(allocator, db_path, db_bak_path);
         return switch (result) {
-            .AlreadyPatched => already_patched_msg,
+            .AlreadyPatched => patcher_error.lookup(error.AlreadyPatched),
             .AppliedPatch => "successfully patched \"" ++ BUNDLE_DATABASE ++ "\"",
         };
     } else if (options.unpatch) {
@@ -114,7 +104,7 @@ fn execute() ![]const u8 {
         // Default to toggle so running without arguments works (i.e. Explorer).
         const result = try toggle_patch(allocator, db_path, db_bak_path, interactive);
         return switch (result) {
-            .AlreadyPatched => already_patched_msg,
+            .AlreadyPatched => patcher_error.lookup(error.AlreadyPatched),
             .AppliedPatch => "successfully patched \"" ++ BUNDLE_DATABASE ++ "\"",
             .RemovedPatch => "successfully removed patch from \"" ++ BUNDLE_DATABASE ++ "\"",
         };
