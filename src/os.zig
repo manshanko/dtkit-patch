@@ -3,7 +3,6 @@ const std = @import("std");
 const windows = std.os.windows;
 
 const root = @import("root");
-const process = @import("zig-std/process.zig");
 
 const is_windows = builtin.os.tag == .windows;
 
@@ -134,23 +133,17 @@ pub fn read_file(allocator: std.mem.Allocator, path: OsStr) ReadFileError![:0]u8
 pub const ArgIterator = struct {
     const Self = @This();
 
-    const Iter = if (is_windows) process.ArgIteratorWindows else std.process.ArgIteratorPosix;
+    const Iter = if (is_windows) ArgIteratorWindows else std.process.ArgIteratorPosix;
 
     inner: Iter,
 
-    pub fn init(allocator: std.mem.Allocator) !Self {
-        if (is_windows) {
-            const cmd_line = windows.peb().ProcessParameters.CommandLine;
-            const cmd_line_w = cmd_line.Buffer.?[0 .. cmd_line.Length / 2];
-            const args = try process.ArgIteratorWindows.init(allocator, cmd_line_w);
-            return .{
-                .inner = args,
-            };
-        } else {
-            return .{
-                .inner = std.process.ArgIteratorPosix.init(),
-            };
-        }
+    pub fn init() !Self {
+        return .{
+            .inner = if (is_windows)
+                try ArgIteratorWindows.init()
+            else
+                std.process.ArgIteratorPosix.init(),
+        };
     }
 
     pub fn deinit(self: *Self) void {
@@ -159,6 +152,47 @@ pub const ArgIterator = struct {
 
     pub fn next(self: *Self) ?OsStr {
         return self.inner.next();
+    }
+};
+
+extern "kernel32" fn LocalFree(
+    hMem: windows.HLOCAL,
+) callconv(.winapi) windows.HLOCAL;
+
+extern "kernel32" fn GetCommandLineW() callconv(.winapi) [*:0]const windows.WCHAR;
+
+extern "shell32" fn CommandLineToArgvW(
+    lpCmdLine: windows.LPCWSTR,
+    pNumArgs: *c_int,
+) callconv(.winapi) ?[*]windows.LPWSTR;
+
+const ArgIteratorWindows = struct {
+    const Self = @This();
+
+    argv: [][*:0]u16,
+    index: usize,
+
+    fn init() error{Unexpected}!Self {
+        var argc: c_int = undefined;
+        if (CommandLineToArgvW(GetCommandLineW(), &argc)) |argv| {
+            return .{
+                .argv = argv[0..@intCast(argc)],
+                .index = 0,
+            };
+        } else {
+            return error.Unexpected;
+        }
+    }
+
+    fn deinit(self: *Self) void {
+        _ = LocalFree(@ptrCast(self.argv));
+    }
+
+    fn next(self: *Self) ?[:0]const u16 {
+        if (self.index >= self.argv.len) return null;
+        const i = self.index;
+        self.index += 1;
+        return std.mem.span(self.argv[i]);
     }
 };
 

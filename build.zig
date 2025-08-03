@@ -33,6 +33,7 @@ pub fn build(b: *std.Build) void {
     if (target.result.os.tag == .windows) {
         exe.linkSystemLibrary("user32");
         exe.linkSystemLibrary("advapi32");
+        exe.linkSystemLibrary("shell32");
     }
 
     b.installArtifact(exe);

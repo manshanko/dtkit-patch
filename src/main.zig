@@ -64,7 +64,7 @@ fn execute() ![]const u8 {
     defer if (!leak_resources) std.debug.assert(gpa.deinit() == .ok);
     const allocator = if (leak_resources) alloc.leaky_allocator else gpa.allocator();
 
-    var args = try os.ArgIterator.init(allocator);
+    var args = try os.ArgIterator.init();
     defer if (!leak_resources) args.deinit();
     _ = args.next(); // ignore bin arg
 
@@ -246,8 +246,4 @@ fn error_print(text: []const u8) void {
     _ = stderr.write("ERROR: ") catch 0;
     _ = stderr.write(text) catch 0;
     _ = stderr.write("\n") catch 0;
-}
- 
-test {
-    _ = @import("zig-std/process.zig");
 }
