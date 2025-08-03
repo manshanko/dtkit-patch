@@ -2,20 +2,16 @@ const builtin = @import("builtin");
 const std = @import("std");
 
 // based on std.mem.indexOfPosLinear
-pub inline fn index_of_pos(haystack: []const u8, start_index: usize, needle: []const u8) ?usize {
-    if (builtin.mode == .ReleaseSmall) {
-        if (needle.len > haystack.len) return null;
+pub noinline fn index_of_pos(haystack: []const u8, start_index: usize, needle: []const u8) ?usize {
+    if (needle.len > haystack.len) return null;
 
-        var i: usize = start_index;
-        const end = haystack.len - needle.len;
-        search: while (i <= end) : (i += 1) {
-            for (0..needle.len) |j| if (haystack[i + j] != needle[j]) continue :search;
-            return i;
-        }
-        return null;
-    } else {
-        return std.mem.indexOfPosLinear(u8, haystack, start_index, needle);
+    var i: usize = start_index;
+    const end = haystack.len - needle.len;
+    search: while (i <= end) : (i += 1) {
+        for (0..needle.len) |j| if (haystack[i + j] != needle[j]) continue :search;
+        return i;
     }
+    return null;
 }
 
 // When @memcpy/@memmove fail to inline on x86_64-windows-gnu it adds ~5KiB overhead.
