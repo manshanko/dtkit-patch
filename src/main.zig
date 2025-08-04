@@ -59,7 +59,7 @@ fn execute() PatcherError![]const u8 {
     _ = args.next(); // ignore bin arg
 
     const options = cli.PatchOptions.init(&args);
-    if (options.help or (options.num_args == 0 and !os.console_will_close())) {
+    if (options.num_args == 0 and !os.console_will_close()) {
         return cli.help_msg();
     } else if (options.env) {
         return cli.env_msg();

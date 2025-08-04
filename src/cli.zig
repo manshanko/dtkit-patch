@@ -51,7 +51,6 @@ pub fn env_msg() [:0]const u8 {
 const Option = enum {
     const Self = @This();
 
-    h, help,
     env,
     interactive,
     patch,
@@ -75,6 +74,7 @@ const Option = enum {
     };
 
     fn match(tag: OsStr) ?Self {
+        if (tag[0] != '-' or tag[1] != '-') return null;
         outer: for (0..fields.len) |i| {
             const key = lookup.keys[i];
             if (key.len == tag.len) {
@@ -90,7 +90,6 @@ pub const PatchOptions = struct {
     const Self = @This();
 
     num_args: u16,
-    help: bool,
     env: bool,
     interactive: bool,
     patch: bool,
@@ -100,7 +99,6 @@ pub const PatchOptions = struct {
 
     pub fn init(args: *os.ArgIterator) Self {
         var num_args: u16 = 0;
-        var help = false;
         var env = false;
         var interactive = false;
         var patch = false;
@@ -111,7 +109,6 @@ pub const PatchOptions = struct {
         while (args.next()) |arg| {
             if (Option.match(arg)) |opt| {
                 switch (opt) {
-                    .h, .help => help = true,
                     .env => env = true,
                     .interactive => interactive = true,
                     .patch => patch = true,
@@ -129,7 +126,6 @@ pub const PatchOptions = struct {
 
         return .{
             .num_args = num_args,
-            .help = help,
             .env = env,
             .interactive = interactive,
             .patch = patch,
