@@ -36,6 +36,8 @@ pub fn build(b: *std.Build) void {
         exe.linkSystemLibrary("shell32");
     }
 
+    exe.bundle_ubsan_rt = if (strip) |strip_| !strip_ else null;
+
     b.installArtifact(exe);
 
     const run_step = b.step("run", "Run the app");

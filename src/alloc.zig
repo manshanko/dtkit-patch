@@ -17,6 +17,15 @@ const vtable: std.mem.Allocator.VTable = .{
     .free = std.mem.Allocator.noFree,
 };
 
+extern "ntdll" fn NtAllocateVirtualMemory(
+    ProcessHandle: windows.HANDLE,
+    BaseAddress: ?*windows.PVOID,
+    ZeroBits: windows.ULONG_PTR,
+    RegionSize: ?*windows.SIZE_T,
+    AllocationType: windows.ULONG,
+    PageProtection: windows.ULONG,
+) callconv(.winapi) windows.NTSTATUS;
+
 fn map(n: usize, alignment: std.mem.Alignment) ?[*]u8 {
     const page_size = std.heap.pageSize();
     if (n >= std.math.maxInt(usize) - page_size) return null;
@@ -26,7 +35,7 @@ fn map(n: usize, alignment: std.mem.Alignment) ?[*]u8 {
         var base_addr: ?*anyopaque = null;
         var size: windows.SIZE_T = n;
 
-        const status = ntdll.NtAllocateVirtualMemory(
+        const status = NtAllocateVirtualMemory(
             windows.GetCurrentProcess(),
             @ptrCast(&base_addr),
             0,
