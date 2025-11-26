@@ -1,18 +1,25 @@
-Toy project to learn Zig while writing a smaller dtkit-patch.
+dtkit-patch
+===========
 
-Size optimizations include:
-1. avoid WTF-8 <-> WTF-16 conversions
-2. vendor patched `std.process.ArgIteratorWindows` to return WTF-16
-3. avoid `@memcpy`/`@memmove`
-4. never free memory
-5. only allocate with `Allocator.allocSentinel`
+Small tool to patch Darktide so mods can be loaded with [Darktide Mod Loader (DML)](https://github.com/Darktide-Mod-Framework/Darktide-Mod-Loader/).
 
-[1] Windows paths are WTF-16. Most interfaces use WTF-8 for lossless conversion. If we're fine being off the happy path then we can avoid that and use WTF-16 directly.
+Based on Aussiemon's original nodejs script.
 
-[2] Zig's iterator for Windows command line returns WTF-8 which we don't want due to [1].
+## About
 
-[3] When `@memcpy` and `@memmove` aren't inlined they bring in extra data (~4KiB in `.rdata` and ~1KiB in `.text`).
+dtkit-patch patches `bundle_database.data` to load `9ba626afa44a3aa3.patch_999` from DML.
 
-[4] Short applications can (ab)use the OS as a garbage collector.
+Darktide updating or validating files will restore `bundle_database.data` which requires running dtkit-patch again to enable mods.
 
-[5] Alloc functions will not be inlined if used enough. In this case using different alloc functions has more binary overhead than only using one. `Allocator.allocSentinel` is a better default than `Allocator.alloc`.
+## Troubleshooting
+
+dtkit-patch tries to find the Darktide folder automatically which can fail sometimes.
+If that happens try:
+```
+dtkit-patch --toggle <PATH_TO_DARKTIDE>/bundle
+```
+where `<PATH_TO_DARKTIDE>` is Darktide's install location (e.g. `C:\Program Files (x86)\Steam\steamapps\common\Warhammer 40,000 DARKTIDE\bundle`).
+
+## Build
+
+Download [Zig 0.15](https://ziglang.org/download/#release-0.15.2) and build dtkit-patch with `zig build --release=safe -Dstrip`.
