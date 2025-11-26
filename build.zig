@@ -26,8 +26,10 @@ pub fn build(b: *std.Build) void {
     });
 
     const version = b.option([]const u8, "version", "semvar version string");
+    const revision = b.option([]const u8, "revision", "revision short hash");
     const options = b.addOptions();
     options.addOption(?[]const u8, "version", version);
+    options.addOption(?[]const u8, "revision", revision);
     exe.root_module.addOptions("config", options);
 
     if (target.result.os.tag == .windows) {

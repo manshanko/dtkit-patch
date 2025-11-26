@@ -5,6 +5,18 @@ const config = @import("config");
 const os = @import("os.zig");
 const OsStr = os.OsStr;
 
+const version = if (@hasDecl(config, "version") and config.version != null)
+    " " ++ config.version.?
+else
+    " 0.0.0-dev";
+
+const revision = if (@hasDecl(config, "revision") and config.revision != null)
+    " (rev " ++ config.revision.? ++ ")"
+else
+    "";
+
+const patch_version = "dtkit-patch" ++ version ++ revision;
+
 fn into_opt(comptime key: [:0]const u8) OsStr {
     const prefix = if (key.len == 1) res: {
         break :res "-";
@@ -16,7 +28,7 @@ fn into_opt(comptime key: [:0]const u8) OsStr {
 
 pub fn help_msg() [:0]const u8 {
     return
-        \\dtkit-patch 0.0.0 (smaller than ever!)
+        patch_version ++ "\n" ++
         \\https://github.com/manshanko/dtkit-patch
         \\
         \\dtkit-patch patches Darktide to load the mod entry bundle.
@@ -37,12 +49,7 @@ pub fn help_msg() [:0]const u8 {
 }
 
 pub fn env_msg() [:0]const u8 {
-    const version = if (@hasDecl(config, "version") and config.version != null)
-        " (" ++ config.version.? ++ ")"
-    else
-        "";
-
-    return "dtkit-patch" ++ version ++ "\n"
+    return patch_version ++ "\n"
         ++ "  built with Zig (" ++ builtin.zig_version_string ++ ")"
     ;
 }
